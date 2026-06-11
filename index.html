@@ -41,7 +41,7 @@
   .regime.bull{background:#13351f;color:#7ee2a3}
   .strip .total{color:#fff;font-weight:700;font-size:14px}
   .strip .fx{margin-left:auto}
-  .strip .upd{font-size:11px;color:#8a95a3}
+  .strip .upd{font-size:11px;color:#8a95a3;margin-left:auto}
   /* main */
   main{padding:16px;flex:1}
   .sectlabel{font-size:11px;font-weight:700;letter-spacing:1.4px;color:var(--muted);
@@ -173,9 +173,8 @@
     </nav>
     <div class="strip">
       <span class="regime bear" id="regimeBadge">BEAR</span>
-      <span class="total" id="totalEquity">£0 total</span>
+      <span class="total" id="totalEquity">$0 total</span>
       <span class="upd" id="updLabel"></span>
-      <span class="fx num" id="fxLabel">GBP/USD 1.30</span>
     </div>
   </header>
   <main id="view"></main>
@@ -200,7 +199,7 @@ const DEFAULTS={
     apiKey:"", model:"claude-sonnet-4-6",
     twelveKey:"", autoRefreshMin:0,
     githubToken:"", gistId:"",         // cloud sync (device-local, never uploaded)
-    startingPot:200000, currency:"£", fx:1.30, regime:"bear",
+    startingPot:200000, currency:"$", fx:1, regime:"bear",
     positionSize:15000,
     targetPct:0.45, beTriggerPct:0.025, partialPct:0.15, partialFrac:0.25,
     minStopWarn:0.02, maxStopWarn:0.08
@@ -211,11 +210,13 @@ function load(){
   const raw=loadRaw();
   if(!raw) return structuredClone(DEFAULTS);
   try{ const p=JSON.parse(raw);
+    const settings=Object.assign({},DEFAULTS.settings,p.settings||{});
+    settings.currency="$"; settings.fx=1;   // dollar-native: ignore any legacy GBP/FX
     return {
       trades:p.trades||[],
       equityLog:Array.isArray(p.equityLog)?p.equityLog:[],
       sync:Object.assign({},DEFAULTS.sync,p.sync||{}),
-      settings:Object.assign({},DEFAULTS.settings,p.settings||{})
+      settings
     };
   }catch(e){ return structuredClone(DEFAULTS); }
 }
@@ -227,7 +228,7 @@ const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
 const fmtUSD=(n)=>"$"+Math.round(n).toLocaleString("en-US");
 const fmtUSD2=(n)=>"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const cur=()=>S().currency;
-const fmtCur=(n)=>cur()+Math.round(n).toLocaleString("en-GB");
+const fmtCur=(n)=>cur()+Math.round(n).toLocaleString("en-US");
 const pctTxt=(x)=>(x>=0?"+":"")+(x*100).toFixed(1)+"%";
 const today=()=> new Date().toISOString().slice(0,10);
 function daysBetween(a,b){ return Math.max(0,Math.round((new Date(b)-new Date(a))/864e5)); }
@@ -336,7 +337,6 @@ function render(){
   // header strip
   const a=agg();
   document.getElementById("totalEquity").textContent=fmtCur(a.equity)+" total";
-  document.getElementById("fxLabel").textContent="GBP/USD "+(S().fx).toFixed(4);
   const ul=document.getElementById("updLabel"); if(ul) ul.textContent=lastQuoteTs?agoText(lastQuoteTs):"";
   const rb=document.getElementById("regimeBadge"), bull=S().regime==="bull";
   rb.textContent=bull?"BULL":"BEAR"; rb.className="regime "+(bull?"bull":"bear");
@@ -466,8 +466,8 @@ function viewPortfolio(a){
   <div class="panel">
     <h3>Trading pot</h3>
     <div class="stat"><span class="k">Baseline budget</span><span class="v">${fmtCur(a.startPot)}</span></div>
-    <div class="stat"><span class="k">Realised P&L</span><span class="v ${a.realizedGBP>=0?'pos':'neg'}">${(a.realizedGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.realizedGBP)).toLocaleString('en-GB')}</span></div>
-    <div class="stat"><span class="k">Open unrealised P&L</span><span class="v ${a.unrealGBP>=0?'pos':'neg'}">${(a.unrealGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.unrealGBP)).toLocaleString('en-GB')}</span></div>
+    <div class="stat"><span class="k">Realised P&L</span><span class="v ${a.realizedGBP>=0?'pos':'neg'}">${(a.realizedGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.realizedGBP)).toLocaleString('en-US')}</span></div>
+    <div class="stat"><span class="k">Open unrealised P&L</span><span class="v ${a.unrealGBP>=0?'pos':'neg'}">${(a.unrealGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.unrealGBP)).toLocaleString('en-US')}</span></div>
     <div class="stat"><span class="k">Cash available</span><span class="v">${fmtCur(a.cash)}</span></div>
     <div class="stat"><span class="k">Deployed (mkt value)</span><span class="v">${fmtCur(a.deployedMktGBP)}</span></div>
     <div class="stat"><span class="k">Open positions</span><span class="v">${a.openT.length}</span></div>
@@ -500,7 +500,7 @@ function viewAnalytics(a){
       .concat(remShares(t)>0?[`${remShares(t)}@${fmtUSD2(t.exitPrice)} close`]:[]).join(" · ");
     return `<div class="recon">
       <div class="recon-top"><span class="rtk">${escapeHtml(t.ticker)}</span>
-        <span class="rpnl ${realGBP>=0?'pos':'neg'} num">${realGBP>=0?'+':'−'}${cur()+Math.round(Math.abs(realGBP)).toLocaleString('en-GB')}</span></div>
+        <span class="rpnl ${realGBP>=0?'pos':'neg'} num">${realGBP>=0?'+':'−'}${cur()+Math.round(Math.abs(realGBP)).toLocaleString('en-US')}</span></div>
       <div class="recon-legs num">${t.shares} sh from ${fmtUSD2(t.entry)} → ${legs||'closed'}</div>
     </div>`;
   }).join("");
@@ -515,7 +515,7 @@ function viewAnalytics(a){
   return `
   <div class="kpis">
     <div class="kpi"><div class="lbl">Win rate</div><div class="big num">${(wr*100).toFixed(0)}%</div></div>
-    <div class="kpi"><div class="lbl">Realised P&L</div><div class="big num ${a.realizedGBP>=0?'pos':'neg'}">${(a.realizedGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.realizedGBP)).toLocaleString('en-GB')}</div></div>
+    <div class="kpi"><div class="lbl">Realised P&L</div><div class="big num ${a.realizedGBP>=0?'pos':'neg'}">${(a.realizedGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.realizedGBP)).toLocaleString('en-US')}</div></div>
   </div>
   <div class="panel">
     <h3>Equity curve (closed trades)</h3>
@@ -537,7 +537,7 @@ function viewAnalytics(a){
   <div class="panel">
     <h3>Closed-trade reconciliation</h3>
     ${recon}
-    <div class="note">Each line folds every scale-out leg plus the final close into one realised figure (GBP).</div>
+    <div class="note">Each line folds every scale-out leg plus the final close into one realised figure (USD).</div>
   </div>`;
 }
 
@@ -643,10 +643,7 @@ function settingsForm(){
       </select>
       <div class="hint">Only polls when the tab is visible and US market hours look open. Each ticker ≈ 1 credit/refresh against your Grow 55/min.</div></div>
     <div class="note" style="margin-bottom:12px">Live prices call Twelve Data directly from your browser. If a refresh fails with a network/CORS error, your browser is blocking the cross-origin call — manual price entry still works, and we can talk about a no-backend workaround.</div>
-    <div class="grid2">
-      <div class="field"><label>Baseline trading budget (${cur()})</label><input id="s_pot" type="number" step="any" value="${s.startingPot}"><div class="hint">Your opening pot — the anchor for the progress graph.</div></div>
-      <div class="field"><label>GBP/USD rate</label><input id="s_fx" type="number" step="any" value="${s.fx}"></div>
-    </div>
+    <div class="field"><label>Baseline trading budget (${cur()})</label><input id="s_pot" type="number" step="any" value="${s.startingPot}"><div class="hint">Your opening pot in dollars — the anchor for the progress graph.</div></div>
     <div class="grid2">
       <div class="field"><label>Position size ($)</label><input id="s_size" type="number" step="any" value="${s.positionSize}"></div>
       <div class="field"><label>Target %</label><input id="s_tgt" type="number" step="any" value="${(s.targetPct*100)}"></div>
@@ -760,7 +757,7 @@ function readSettingsFields(){
   s.apiKey=val("s_key"); s.model=val("s_model")||s.model; s.twelveKey=val("s_td");
   const av=document.getElementById("s_auto"); if(av) s.autoRefreshMin=+av.value||0;
   s.githubToken=val("s_ghtoken"); s.gistId=val("s_gistid");
-  s.startingPot=num("s_pot")??s.startingPot; s.fx=num("s_fx")??s.fx;
+  s.startingPot=num("s_pot")??s.startingPot;
   s.positionSize=num("s_size")??s.positionSize;
   if(num("s_tgt")!=null) s.targetPct=num("s_tgt")/100;
   if(num("s_be")!=null) s.beTriggerPct=num("s_be")/100;
@@ -777,6 +774,7 @@ function doImport(file){
   if(!file) return; const fr=new FileReader();
   fr.onload=()=>{ try{ const p=JSON.parse(fr.result);
     state={trades:p.trades||[], equityLog:Array.isArray(p.equityLog)?p.equityLog:[], sync:Object.assign({},DEFAULTS.sync,p.sync||{}), settings:Object.assign({},DEFAULTS.settings,p.settings||{})};
+    state.settings.currency="$"; state.settings.fx=1;
     persist(); closeModal(); render(); toast("Data restored");
   }catch(e){ toast("Couldn't read that file"); } };
   fr.readAsText(file);
@@ -1071,7 +1069,7 @@ function seedIfEmpty(){
     {id:uid(),ticker:"HPP",entry:13.07,shares:637,initialStop:12.40,currentStop:13.07,currentPrice:15.07,entryDate:isoMinus(8),status:"open",partials:[{shares:213,price:15.04,date:today()}],advice:null},
     {id:uid(),ticker:"LQDA",entry:42.10,shares:356,initialStop:41.20,currentStop:41.20,currentPrice:41.63,entryDate:isoMinus(2),status:"open",partials:[],advice:null}
   ];
-  state.settings.startingPot=200000; state.settings.fx=1.3362; persist();
+  state.settings.startingPot=200000; state.settings.fx=1; persist();
 }
 function isoMinus(d){ const x=new Date(); x.setDate(x.getDate()-d); return x.toISOString().slice(0,10); }
 
