@@ -815,35 +815,54 @@ function doImport(file){
 async function askClaude(t,btn){
   const s=S();
   if(!s.apiKey){ openModal(settingsForm()); toast("Add your API key to enable Claude"); return; }
-  const label=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spin"></span> Asking Claude…';
-  const sys=`You are a disciplined swing-trading assistant. You apply ONE fixed, pre-agreed rule set to the user's open position. You do NOT predict the market, give generic financial advice, or invent new rules. You only judge the position against these rules and the live numbers given.
+  const label=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spin"></span> Analysing chart…';
 
-RULES:
-- Fixed $${s.positionSize} positions.
-- Initial stop = low of the opening day.
-- Hard take-profit at +${(s.targetPct*100).toFixed(0)}% (entry x ${(1+s.targetPct).toFixed(2)}). Do not chase past it.
-- Move stop to entry (breakeven) once a daily close is >= +${(s.beTriggerPct*100).toFixed(1)}% above entry.
-- Optional partial: sell ${(s.partialFrac*100).toFixed(0)}% at +${(s.partialPct*100).toFixed(0)}% — roughly P&L-neutral, psychological only.
-- Do NOT skip sub-2% stops. Avoid initial stops wider than ~${(s.maxStopWarn*100).toFixed(0)}%.
-- New entries only in a bull regime (ONEQ 10-EMA > 20-EMA). Current regime: ${s.regime.toUpperCase()}.
-- Honest caveat: the +45% target edge rests on only a few big winners in backtesting, so treat it as a working hypothesis, not gospel.
+  // Pull daily OHLC for a technical read; degrade gracefully if unavailable.
+  let taBlock="", taNote="";
+  if(s.twelveKey){
+    try{
+      const bars=await fetchDailyBars(t.ticker,160);
+      if(bars.length>=20){ taBlock=buildTAText(computeTA(bars),bars); }
+      else { taNote=`(only ${bars.length} daily bars returned — using position numbers only)`; }
+    }catch(e){ taNote=`(couldn't load Twelve Data bars: ${e.message} — using position numbers only)`; }
+  } else {
+    taNote="(no Twelve Data key set — analysis uses position numbers only; add a key in Settings for a full chart read)";
+  }
 
-OUTPUT FORMAT: First line = ONE action in caps (HOLD / MOVE STOP TO BREAKEVEN / TAKE PARTIAL / TRIM / CLOSE / TAKE TARGET). Then at most two short sentences citing the specific numbers and which rule applies. Be concrete and brief. No disclaimers.`;
-  const usr=`Position: ${t.ticker}
-Entry: $${t.entry} on ${t.entryDate} (${daysBetween(t.entryDate,today())} days held)
-Shares held: ${remShares(t)}${(t.partials||[]).length?` (already banked ${(t.partials).reduce((a,p)=>a+p.shares,0)} as partials)`:""}
-Current price: $${t.currentPrice} (${pctTxt(retPct(t))})
-Current stop: $${t.currentStop}${atBE(t)?" (at breakeven)":""}
-+45% target price: $${targetPrice(t).toFixed(2)}
-Initial stop distance: ${(initStopPct(t)*100).toFixed(1)}%
-Breakeven trigger met: ${beTriggered(t)?"yes":"no"}
+  const sys=`You are a disciplined swing-trading assistant analysing ONE open position for the user, a US momentum/breakout swing trader (Qullamaggie-style: enter on breakouts, ride the trend, sell into strength or when the trend structure breaks). You combine the user's fixed rule set with a technical read of the supplied DAILY bars. You do NOT predict the market or give generic advice — you judge THIS chart and THIS position.
 
-What does the strategy say to do right now?`;
+RULE SET:
+- Fixed $${s.positionSize} positions; initial stop = the opening-day low.
+- Hard take-profit at +${(s.targetPct*100).toFixed(0)}% (don't chase past it).
+- Move stop to entry once a daily CLOSE is >= +${(s.beTriggerPct*100).toFixed(1)}% above entry.
+- Optional partial (~${(s.partialFrac*100).toFixed(0)}%) into strength — roughly P&L-neutral, psychological.
+- Ride winners while the trend holds; the edge rests on a few big winners, so do not over-trim a healthy trend.
+- New entries only in a bull regime (current: ${s.regime.toUpperCase()}).
+
+HOW TO DECIDE (read the bars + indicators):
+- HOLD: trend intact — price holding above the rising EMA10/EMA20, structure of higher lows, not climactic. Let it run.
+- PARTIAL SELL: still trending but stretched — e.g. far extended above EMA10, a climactic up-day on big volume, or stalling into the prior high. Take some off, keep a runner.
+- SELL ALL: trend broken or done — lost the EMA20/SMA50 with conviction, lower-low structure, distribution, hit the stop, or reached the +${(s.targetPct*100).toFixed(0)}% target.
+- You may instead say MOVE STOP TO BREAKEVEN if that is the cleaner live action.
+
+OUTPUT: First line = ONE action in caps: HOLD / PARTIAL SELL / SELL ALL / MOVE STOP TO BREAKEVEN. Then 2-4 short sentences citing specific levels and figures from the data (e.g. "extended +18% over EMA10", "lost EMA20 at $X on rising volume", "$Y below the 20-day high"). Be concrete. No disclaimers, no generic warnings.`;
+
+  const usr=`Position: ${t.ticker} (OPEN)
+Entry $${t.entry} on ${t.entryDate} (${daysBetween(t.entryDate,today())} days held)
+Shares held: ${remShares(t)}${(t.partials||[]).length?` (already scaled out ${(t.partials).reduce((a,p)=>a+p.shares,0)} of ${t.shares})`:""}
+Current price: $${t.currentPrice} (${pctTxt(retPct(t))} from entry)
+Current stop: $${t.currentStop}${atBE(t)?" (at breakeven)":""} — initial risk was ${(initStopPct(t)*100).toFixed(1)}%
++${(s.targetPct*100).toFixed(0)}% target: $${targetPrice(t).toFixed(2)}
+${taNote}
+${taBlock}
+
+Based on the technical picture of the daily chart and the rules, what should I do with this position right now — hold, partial sell, or sell everything?`;
+
   try{
     const res=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{"x-api-key":s.apiKey,"anthropic-version":"2023-06-01","content-type":"application/json","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:s.model,max_tokens:300,system:sys,messages:[{role:"user",content:usr}]})
+      body:JSON.stringify({model:s.model,max_tokens:500,system:sys,messages:[{role:"user",content:usr}]})
     });
     const data=await res.json();
     if(!res.ok){ throw new Error(data?.error?.message||("HTTP "+res.status)); }
@@ -858,6 +877,55 @@ What does the strategy say to do right now?`;
 
 /* ============================== live prices (Twelve Data) ============================== */
 const tdNum=(x)=>{ const n=parseFloat(x); return isFinite(n)?n:null; };
+
+/* --- daily OHLC + technical analysis (for Ask Claude) --- */
+async function fetchDailyBars(symbol,count){
+  const key=S().twelveKey;
+  if(!key) throw new Error("no Twelve Data key");
+  const url="https://api.twelvedata.com/time_series?symbol="+encodeURIComponent(symbol)
+    +"&interval=1day&outputsize="+count+"&apikey="+encodeURIComponent(key);
+  let res; try{ res=await fetch(url); }catch(e){ throw new Error("blocked (CORS/network)"); }
+  let d; try{ d=await res.json(); }catch(e){ throw new Error("non-JSON response"); }
+  if(!d || d.status==="error") throw new Error((d&&d.message)||"Twelve Data error");
+  const vals=Array.isArray(d.values)?d.values:[];
+  return vals.map(v=>({d:v.datetime,o:tdNum(v.open),h:tdNum(v.high),l:tdNum(v.low),c:tdNum(v.close),v:tdNum(v.volume)}))
+             .filter(b=>b.c!=null).reverse(); // oldest → newest
+}
+function _sma(a,n){ if(a.length<n) return null; let s=0; for(let i=a.length-n;i<a.length;i++) s+=a[i]; return s/n; }
+function _ema(a,n){ if(a.length<n) return null; const k=2/(n+1); let e=a.slice(0,n).reduce((x,y)=>x+y,0)/n; for(let i=n;i<a.length;i++) e=a[i]*k+e*(1-k); return e; }
+function computeTA(bars){
+  const c=bars.map(b=>b.c), n=bars.length, last=bars[n-1];
+  const ema10=_ema(c,10), ema20=_ema(c,20), sma50=_sma(c,50), sma200=_sma(c,200);
+  const adrN=Math.min(20,n); let adr=0,cnt=0;
+  for(let i=n-adrN;i<n;i++){ if(bars[i].l>0){ adr+=(bars[i].h/bars[i].l-1); cnt++; } } adr=cnt?adr/cnt*100:null;
+  const last20=bars.slice(-20), last7=bars.slice(-7);
+  const hi20=Math.max(...last20.map(b=>b.h)), lo20=Math.min(...last20.map(b=>b.l));
+  const winHi=Math.max(...bars.map(b=>b.h));
+  const avgVol20=_sma(bars.map(b=>b.v||0),Math.min(20,n));
+  const lastMovePct=n>=2?(last.c/bars[n-2].c-1)*100:0;
+  const lo7=Math.min(...last7.map(b=>b.l)), hh7=Math.max(...last7.map(b=>b.h));
+  const cons7=lo7>0?(hh7/lo7-1)*100:null;
+  const aligned = ema10!=null&&ema20!=null&&sma50!=null && last.c>ema10&&ema10>ema20&&ema20>sma50;
+  return {n,last,ema10,ema20,sma50,sma200,adr,hi20,lo20,winHi,avgVol20,lastMovePct,cons7,aligned};
+}
+function buildTAText(ta,bars){
+  const f=(x,d=2)=>x==null?"n/a":(+x).toFixed(d);
+  const pd=(p,m)=>m==null?"n/a":((p/m-1)*100>=0?"+":"")+((p/m-1)*100).toFixed(1)+"%";
+  const last=ta.last;
+  const rows=bars.slice(-30).map(b=>`${b.d}  O ${f(b.o)}  H ${f(b.h)}  L ${f(b.l)}  C ${f(b.c)}  V ${b.v||0}`).join("\n");
+  return [
+`DAILY TECHNICALS (${ta.n} bars, last close ${f(last.c)} on ${last.d}):`,
+`EMA10 ${f(ta.ema10)} (price ${pd(last.c,ta.ema10)}), EMA20 ${f(ta.ema20)} (${pd(last.c,ta.ema20)}), SMA50 ${f(ta.sma50)} (${pd(last.c,ta.sma50)})${ta.sma200!=null?`, SMA200 ${f(ta.sma200)} (${pd(last.c,ta.sma200)})`:""}`,
+`Uptrend stack price>EMA10>EMA20>SMA50: ${ta.aligned?"YES":"no"}`,
+`ADR(20): ${f(ta.adr,1)}%/day`,
+`20-day high ${f(ta.hi20)} (price ${pd(last.c,ta.hi20)} vs it), 20-day low ${f(ta.lo20)}, window high ${f(ta.winHi)} (price ${pd(last.c,ta.winHi)} off it)`,
+`Last bar move ${ta.lastMovePct>=0?"+":""}${f(ta.lastMovePct,1)}%, volume ${ta.last.v||0} vs 20d-avg ${ta.avgVol20!=null?Math.round(ta.avgVol20):"n/a"}${ta.avgVol20?` (${(ta.last.v/ta.avgVol20).toFixed(2)}x)`:""}`,
+`Last 7-bar range tightness: ${ta.cons7==null?"n/a":f(ta.cons7,1)+"%"}`,
+``,
+`RECENT DAILY BARS (oldest→newest):`,
+rows
+  ].join("\n");
+}
 let refreshing=false, lastQuoteTs=null, autoTimer=null;
 
 function agoText(ts){
