@@ -854,32 +854,28 @@ async function askClaude(t,btn){
     taNote="(no Twelve Data key set — analysis uses position numbers only; add a key in Settings for a full chart read)";
   }
 
-  const sys=`You are an expert technical analyst. Perform a detailed, rigorous technical analysis of the DAILY chart for the user's open long position and give a clear, actionable view. Base EVERYTHING purely on technical analysis of the supplied price/volume data. Do NOT apply any trading strategy, position-sizing rule, fixed profit target, breakeven rule, regime filter, or "ride the trend" doctrine — ignore all of that completely. Technicals only.
+  const sys=`You are an expert technical analyst writing a SHORT, plain-English note on the DAILY chart of the user's open long position. Base everything purely on technical analysis of the supplied price/volume data — ignore any trading strategy, profit target, position-sizing or rule set. Technicals only.
 
-Analyse, as far as the data supports:
-- TREND & STRUCTURE: the primary trend and its quality; higher-highs/higher-lows vs lower-highs/lower-lows; price location vs EMA10, EMA20, SMA50 and SMA200, and the slope and stacking of those averages.
-- KEY LEVELS: nearest support and resistance, the active range, prior swing highs/lows, breakout/breakdown levels, round numbers.
-- MOMENTUM: the RSI(14) reading and what it implies (trend strength, overbought/oversold, any divergence vs price).
-- VOLUME: accumulation vs distribution, climactic or drying-up volume, up-day vs down-day volume, whether volume confirms or fails to confirm the move.
-- VOLATILITY & EXTENSION: ADR, and how stretched price is from EMA10/EMA20 (mean-reversion risk).
-- PATTERNS: any chart patterns (flag, pennant, base, cup, wedge, double top/bottom, head-and-shoulders, range) and notable candlestick signals in the recent bars.
+Write for a smart non-expert: clear everyday language. If you mention something technical (RSI, a moving average, volume, a pattern), say in plain words what it is telling you. No headers, no bullet lists, no jargon dumps.
 
-Then deliver your VIEW on the position — exactly one of CONTINUE TO HOLD / SCALE OUT (PARTIAL) / EXIT (SELL ALL) — derived purely from the technicals, with: the technical rationale; the specific price level that would CONFIRM the view and the level that would INVALIDATE it; and the key technical risk (where the read breaks down).
+FORMAT — keep it tight:
+- One or two short paragraphs explaining what the chart is doing: the trend and how healthy it looks, where price sits versus recent highs/lows and its key moving averages, what momentum and volume are saying, and any pattern worth noting. Mention the specific price levels that matter.
+- Then a FINAL line that starts with "ACTION:" giving ONE clear recommendation — HOLD, MOVE STOP (say to what price and why), PARTIAL SELL (say roughly how much and why), or FULL SELL — with a one-sentence reason and the key price level to watch.
 
-Cite specific prices, levels and figures from the data throughout. Be precise and substantive. Structure the answer with short labelled sections (Trend, Levels, Momentum, Volume, Patterns, View). No generic disclaimers.`;
+Be concise and concrete. No disclaimers.`;
 
-  const usr=`Instrument: ${t.ticker} — daily-chart technical analysis requested.
-Position context (reference only — do not let it drive a strategy; judge the chart on its own technical merits): open long from $${t.entry}, now $${t.currentPrice} (${pctTxt(retPct(t))}).
+  const usr=`Instrument: ${t.ticker} — daily chart.
+Context (reference only, do not apply any strategy): open long from $${t.entry}, now $${t.currentPrice} (${pctTxt(retPct(t))}).
 ${taNote}
 ${taBlock}
 
-Give a detailed, advanced technical analysis of this daily chart, then your technical view on the position now — continue to hold, scale out partially, or exit.`;
+Give a short, plain-English technical read of this chart and then your action.`;
 
   try{
     const res=await fetch("https://api.anthropic.com/v1/messages",{
       method:"POST",
       headers:{"x-api-key":s.apiKey,"anthropic-version":"2023-06-01","content-type":"application/json","anthropic-dangerous-direct-browser-access":"true"},
-      body:JSON.stringify({model:s.model,max_tokens:1000,system:sys,messages:[{role:"user",content:usr}]})
+      body:JSON.stringify({model:s.model,max_tokens:450,system:sys,messages:[{role:"user",content:usr}]})
     });
     const data=await res.json();
     if(!res.ok){ throw new Error(data?.error?.message||("HTTP "+res.status)); }
