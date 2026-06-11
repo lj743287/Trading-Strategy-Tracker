@@ -81,6 +81,11 @@
   .dr .v{font-weight:600}
   .dr .v.mono{font-variant-numeric:tabular-nums}
   .muted{color:var(--muted)}
+  .lwwrap{padding:2px 14px 14px}
+  .lwlabel{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.3px;margin:0 2px 6px}
+  .lwchart{width:100%;height:170px}
+  .chartph{height:170px;display:flex;align-items:center;justify-content:center;text-align:center;
+           color:var(--muted);font-size:12px;background:#f7f8f9;border-radius:10px;padding:0 16px}
   /* advice */
   .advice{margin:4px 16px 14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
   .adv-head{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f7f8f9;font-size:12px;font-weight:700;color:var(--muted)}
@@ -183,6 +188,7 @@
 <div class="scrim" id="scrim"><div class="modal" id="modal"></div></div>
 <div class="toast" id="toast"></div>
 
+<script src="https://unpkg.com/lightweight-charts@5/dist/lightweight-charts.standalone.production.js" async onload="window.dispatchEvent(new Event('lwcready'))"></script>
 <script>
 "use strict";
 /* ============================== storage ============================== */
@@ -229,6 +235,10 @@ const fmtUSD=(n)=>"$"+Math.round(n).toLocaleString("en-US");
 const fmtUSD2=(n)=>"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
 const cur=()=>S().currency;
 const fmtCur=(n)=>cur()+Math.round(n).toLocaleString("en-US");
+function fmtCompactUSD(n){ const a=Math.abs(n);
+  if(a>=1e6) return cur()+(n/1e6).toFixed(a>=1e7?0:1)+"m";
+  if(a>=1e3) return cur()+(n/1e3).toFixed(a>=1e4?0:1)+"k";
+  return cur()+Math.round(n); }
 const pctTxt=(x)=>(x>=0?"+":"")+(x*100).toFixed(1)+"%";
 const today=()=> new Date().toISOString().slice(0,10);
 function daysBetween(a,b){ return Math.max(0,Math.round((new Date(b)-new Date(a))/864e5)); }
@@ -335,6 +345,8 @@ function progressSeries(a){
 /* ============================== render ============================== */
 let activeTab="trades";
 function render(){
+  clearCharts();
+  const seq=++renderSeq;
   // header strip
   const a=agg();
   document.getElementById("totalEquity").textContent=fmtCur(a.equity)+" total";
@@ -343,7 +355,7 @@ function render(){
   rb.textContent=bull?"BULL":"BEAR"; rb.className="regime "+(bull?"bull":"bear");
   document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===activeTab));
   const v=document.getElementById("view");
-  if(activeTab==="trades") v.innerHTML=viewTrades();
+  if(activeTab==="trades"){ v.innerHTML=viewTrades(); requestAnimationFrame(()=>{ if(seq===renderSeq) mountCharts(); }); }
   else if(activeTab==="portfolio") v.innerHTML=viewPortfolio(a);
   else if(activeTab==="analytics") v.innerHTML=viewAnalytics(a);
   else v.innerHTML=viewStrategy();
@@ -407,6 +419,7 @@ function cardHTML(t){
       <div class="dr"><span class="k">Market value</span><span class="v mono">${fmtUSD(marketValueUSD(t))}</span></div>
       ${part}
     </div>
+    <div class="lwwrap"><div class="lwlabel">DAILY CHART</div><div class="lwchart" id="chart_${t.id}"><div class="chartph">Loading chart…</div></div></div>
     <div class="advice">
       <div class="adv-head">Strategy check<span class="adv-act ${v.cls}">${v.act}</span></div>
       <div class="adv-body">${v.txt}</div>
@@ -435,19 +448,29 @@ function viewTrades(){
 }
 
 function progressChartSVG(series,a){
-  const W=480,H=140,pad=8;
+  const W=480,H=150,padL=46,padR=8,padT=10,padB=14;
+  const plotW=W-padL-padR, plotH=H-padT-padB;
   const t0=new Date(series[0].d).getTime(), t1=new Date(series[series.length-1].d).getTime(), span=(t1-t0)||1;
   const ys=series.map(p=>p.eq).concat([a.startPot]);
-  const mn=Math.min(...ys), mx=Math.max(...ys), yspan=(mx-mn)||1;
-  const sx=(d)=> pad+((new Date(d).getTime()-t0)/span)*(W-2*pad);
-  const sy=(y)=> H-pad-((y-mn)/yspan)*(H-2*pad);
+  let mn=Math.min(...ys), mx=Math.max(...ys); if(mx===mn){ mx+=1; mn-=1; }
+  const yspan=mx-mn;
+  const sx=(d)=> padL+((new Date(d).getTime()-t0)/span)*plotW;
+  const sy=(y)=> padT+(mx-y)/yspan*plotH;
   const line=series.map((p,i)=>(i?'L':'M')+sx(p.d).toFixed(1)+' '+sy(p.eq).toFixed(1)).join(' ');
-  const up=a.equity>=a.startPot, baseY=sy(a.startPot).toFixed(1);
-  const area=`M ${sx(series[0].d).toFixed(1)} ${baseY} `+series.map(p=>'L'+sx(p.d).toFixed(1)+' '+sy(p.eq).toFixed(1)).join(' ')+` L ${sx(series[series.length-1].d).toFixed(1)} ${baseY} Z`;
+  const up=a.equity>=a.startPot, baseY=sy(a.startPot).toFixed(1), botY=(padT+plotH).toFixed(1);
+  const area=`M ${sx(series[0].d).toFixed(1)} ${botY} `+series.map(p=>'L'+sx(p.d).toFixed(1)+' '+sy(p.eq).toFixed(1)).join(' ')+` L ${sx(series[series.length-1].d).toFixed(1)} ${botY} Z`;
+  const ticks=4; let grid="",labels="";
+  for(let i=0;i<=ticks;i++){
+    const val=mn+yspan*i/ticks, y=sy(val).toFixed(1);
+    grid+=`<line x1="${padL}" y1="${y}" x2="${W-padR}" y2="${y}" stroke="#eef0f2" stroke-width="1"/>`;
+    labels+=`<text x="${padL-4}" y="${(+y+3).toFixed(1)}" text-anchor="end" font-size="9" fill="var(--muted)">${fmtCompactUSD(val)}</text>`;
+  }
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
+    ${grid}${labels}
     <path d="${area}" fill="${up?'rgba(22,163,74,.10)':'rgba(220,38,38,.10)'}"/>
-    <line x1="${pad}" y1="${baseY}" x2="${W-pad}" y2="${baseY}" stroke="#c9ccd1" stroke-dasharray="4 4"/>
+    <line x1="${padL}" y1="${baseY}" x2="${W-padR}" y2="${baseY}" stroke="#9aa3ad" stroke-dasharray="4 4"/>
     <path d="${line}" fill="none" stroke="${up?'var(--green)':'var(--red)'}" stroke-width="2.5" stroke-linejoin="round"/>
+    <circle cx="${sx(series[series.length-1].d).toFixed(1)}" cy="${sy(a.equity).toFixed(1)}" r="3" fill="${up?'var(--green)':'var(--red)'}"/>
   </svg>`;
 }
 
@@ -927,6 +950,53 @@ rows
   ].join("\n");
 }
 let refreshing=false, lastQuoteTs=null, autoTimer=null;
+const barCache={};            // {TICKER:{bars,ts}} — in-memory daily OHLC, not persisted
+let chartInstances=[], renderSeq=0;
+
+/* fetch daily bars for the open tickers into the cache (for the per-card candlestick charts) */
+async function refreshBars(symbols,force){
+  const key=S().twelveKey; if(!key||!symbols.length) return;
+  const now=Date.now(), maxAge=20*60*1000;
+  const need=symbols.filter(s=>{ const c=barCache[s.toUpperCase()]; return force||!c||(now-c.ts)>maxAge; });
+  if(!need.length) return;
+  await Promise.allSettled(need.map(async sym=>{
+    try{ const bars=await fetchDailyBars(sym,160); if(bars.length) barCache[sym.toUpperCase()]={bars,ts:Date.now()}; }catch(e){}
+  }));
+}
+
+/* candlestick charts via TradingView Lightweight Charts (loaded from CDN) */
+function clearCharts(){ chartInstances.forEach(c=>{ try{c.remove();}catch(e){} }); chartInstances=[]; }
+function mountCharts(){
+  const LC=window.LightweightCharts;
+  state.trades.filter(t=>t.status==="open").forEach(t=>{
+    const el=document.getElementById("chart_"+t.id); if(!el) return;
+    const cache=barCache[t.ticker.toUpperCase()];
+    if(!cache||!cache.bars||cache.bars.length<2){
+      el.innerHTML=`<div class="chartph">${S().twelveKey?"Tap ↻ Refresh to load the daily chart":"Add a Twelve Data key in Settings to load charts"}</div>`; return;
+    }
+    if(!LC){ return; } // library not ready yet; placeholder stays, re-renders on 'lwcready'
+    const seen=new Set(), data=[];
+    for(const b of cache.bars){ if(b.o==null||b.h==null||b.l==null||b.c==null||seen.has(b.d)) continue; seen.add(b.d); data.push({time:b.d,open:b.o,high:b.h,low:b.l,close:b.c}); }
+    if(data.length<2){ el.innerHTML=`<div class="chartph">not enough data</div>`; return; }
+    try{
+      el.innerHTML="";
+      const chart=LC.createChart(el,{ autoSize:true,
+        layout:{background:{type:"solid",color:"#ffffff"},textColor:"#6b7480",fontSize:10,attributionLogo:false},
+        rightPriceScale:{borderVisible:false},
+        timeScale:{borderVisible:false,rightOffset:2},
+        grid:{horzLines:{color:"#f0f1f3"},vertLines:{color:"rgba(0,0,0,0)"}},
+        handleScroll:false, handleScale:false
+      });
+      const series=chart.addSeries(LC.CandlestickSeries,{upColor:"#16a34a",downColor:"#dc2626",borderVisible:false,wickUpColor:"#16a34a",wickDownColor:"#dc2626"});
+      series.setData(data);
+      series.createPriceLine({price:+t.entry,color:"#2563eb",lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"entry"});
+      series.createPriceLine({price:+t.currentStop,color:(t.currentStop>=t.entry?"#16a34a":"#dc2626"),lineWidth:1,lineStyle:2,axisLabelVisible:true,title:"stop"});
+      chart.timeScale().fitContent();
+      chartInstances.push(chart);
+    }catch(e){ el.innerHTML=`<div class="chartph">chart error</div>`; }
+  });
+}
+window.addEventListener("lwcready",()=>{ if(activeTab==="trades") render(); });
 
 function agoText(ts){
   const s=Math.round((Date.now()-ts)/1000);
@@ -990,6 +1060,7 @@ async function refreshPrices(manual){
       if(r.prevClose!=null) t.prevClose=r.prevClose;
       t.marketOpen=r.marketOpen;
     });
+    await refreshBars(syms, manual);     // manual refresh always pulls fresh bars; auto only if stale
     lastQuoteTs=Date.now(); persist(); render();
     if(manual||errs.length){
       let m=`Updated ${updated} ${updated===1?"price":"prices"}`;
@@ -1176,6 +1247,8 @@ seedIfEmpty();
 render();
 setupAutoRefresh();
 setInterval(()=>{ const ul=document.getElementById("updLabel"); if(ul&&lastQuoteTs) ul.textContent=agoText(lastQuoteTs); },30000);
+// On open, pull current prices + daily bars once so charts and prices are populated.
+if(S().twelveKey && state.trades.some(t=>t.status==="open")) refreshPrices(false);
 </script>
 </body>
 </html>
