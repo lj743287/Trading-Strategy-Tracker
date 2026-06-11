@@ -1,0 +1,1084 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>Trade Manager</title>
+<style>
+  :root{
+    --bg:#e9e7e1; --card:#ffffff; --ink:#0f1822; --muted:#6b7480; --line:#e7e9ec;
+    --navy:#1d2733; --navy2:#27313e;
+    --green:#16a34a; --greenbg:#e7f6ec; --red:#dc2626; --redbg:#fdecec;
+    --amber:#c2810b; --blue:#2563eb; --bluebg:#e8f0fe;
+    --shadow:0 1px 2px rgba(16,24,34,.06),0 6px 20px rgba(16,24,34,.06);
+    --r:16px;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0}
+  body{
+    background:var(--bg); color:var(--ink);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    font-size:15px; line-height:1.45; -webkit-font-smoothing:antialiased;
+  }
+  .num{font-variant-numeric:tabular-nums}
+  .wrap{max-width:560px;margin:0 auto;min-height:100vh;display:flex;flex-direction:column}
+  /* header */
+  header{background:var(--navy);color:#fff;padding:14px 16px 0}
+  .htop{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .htop h1{font-size:20px;font-weight:700;margin:0;letter-spacing:.2px}
+  .hbtns{display:flex;gap:8px}
+  .hbtn{background:var(--navy2);color:#dfe4ea;border:1px solid #3a4756;border-radius:10px;
+        padding:8px 12px;font-size:13px;font-weight:600;cursor:pointer}
+  .hbtn:hover{background:#313c4a}
+  nav{display:flex;gap:4px;margin-top:14px}
+  .tab{flex:1;background:none;border:none;color:#9aa6b3;font-size:13.5px;font-weight:600;
+       padding:10px 4px 12px;cursor:pointer;border-bottom:2px solid transparent}
+  .tab.active{color:#fff;border-bottom-color:var(--blue)}
+  .strip{display:flex;align-items:center;gap:12px;background:var(--navy2);
+         margin:0 -16px;padding:9px 16px;font-size:13px;color:#aeb8c4}
+  .regime{font-weight:800;font-size:11px;letter-spacing:.5px;padding:3px 9px;border-radius:6px;cursor:pointer}
+  .regime.bear{background:#4a1d1d;color:#ff8c8c}
+  .regime.bull{background:#13351f;color:#7ee2a3}
+  .strip .total{color:#fff;font-weight:700;font-size:14px}
+  .strip .fx{margin-left:auto}
+  .strip .upd{font-size:11px;color:#8a95a3}
+  /* main */
+  main{padding:16px;flex:1}
+  .sectlabel{font-size:11px;font-weight:700;letter-spacing:1.4px;color:var(--muted);
+             text-transform:uppercase;margin:2px 2px 12px}
+  /* card */
+  .card{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);margin-bottom:16px;overflow:hidden}
+  .chead{padding:14px 16px 12px;border-bottom:1px solid var(--line)}
+  .crow1{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+  .tkwrap{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+  .tk{font-size:21px;font-weight:800;letter-spacing:.3px}
+  .badge{font-size:11px;font-weight:700;padding:3px 8px;border-radius:6px}
+  .b-be{background:var(--bluebg);color:var(--blue)}
+  .b-partial{background:#fdf0d9;color:var(--amber)}
+  .b-orig{background:#eef0f2;color:var(--muted)}
+  .b-target{background:var(--greenbg);color:var(--green)}
+  .bigret{text-align:right}
+  .bigret .pct{font-size:21px;font-weight:800}
+  .bigret .amt{font-size:13px;font-weight:600;color:var(--muted)}
+  .pos{color:var(--green)} .neg{color:var(--red)}
+  .sub{margin-top:4px;font-size:12.5px;color:var(--muted)}
+  .sub b{color:var(--ink);font-weight:600}
+  /* slider */
+  .slider{padding:18px 16px 14px}
+  .track{position:relative;height:10px;border-radius:6px;background:#edeef0;margin:22px 6px 18px}
+  .fill{position:absolute;top:0;bottom:0;border-radius:6px}
+  .mk{position:absolute;top:50%;transform:translate(-50%,-50%)}
+  .mk-tl{font-size:10px;color:var(--muted);top:-20px;transform:translateX(-50%);font-weight:600}
+  .mk-line{width:3px;height:18px;border-radius:2px;top:-4px}
+  .mk-entry{border-left:6px solid transparent;border-right:6px solid transparent;border-top:8px solid var(--red);top:-13px;height:0;width:0}
+  .mk-dot{width:18px;height:18px;border-radius:50%;border:3px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.25)}
+  .mk-diam{width:13px;height:13px;background:#fff;border:2px solid var(--amber);transform:translate(-50%,-50%) rotate(45deg)}
+  .axis{font-size:10px;color:var(--muted);font-weight:600}
+  /* detail rows */
+  .rows{padding:6px 16px 14px}
+  .dr{display:flex;justify-content:space-between;padding:5px 0;font-size:14px}
+  .dr .k{color:var(--muted)}
+  .dr .v{font-weight:600}
+  .dr .v.mono{font-variant-numeric:tabular-nums}
+  .muted{color:var(--muted)}
+  /* advice */
+  .advice{margin:4px 16px 14px;border:1px solid var(--line);border-radius:12px;overflow:hidden}
+  .adv-head{display:flex;align-items:center;gap:8px;padding:9px 12px;background:#f7f8f9;font-size:12px;font-weight:700;color:var(--muted)}
+  .adv-act{margin-left:auto;font-size:11px;font-weight:800;padding:3px 9px;border-radius:6px}
+  .act-hold{background:#eef0f2;color:#586472}
+  .act-good{background:var(--greenbg);color:var(--green)}
+  .act-warn{background:#fdf0d9;color:var(--amber)}
+  .act-danger{background:var(--redbg);color:var(--red)}
+  .adv-body{padding:10px 12px;font-size:13.5px;color:#2a323b}
+  .adv-claude{border-top:1px dashed var(--line);padding:10px 12px;font-size:13.5px;color:#2a323b;white-space:pre-wrap}
+  .adv-claude .tag{font-size:11px;font-weight:700;color:var(--blue);display:block;margin-bottom:4px}
+  /* buttons */
+  .acts{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:0 16px 16px}
+  .btn{padding:11px;border-radius:11px;font-size:14px;font-weight:700;cursor:pointer;border:1.5px solid;background:#fff;text-align:center}
+  .btn-claude{grid-column:1 / -1;border-color:var(--blue);color:var(--blue);background:var(--bluebg)}
+  .btn-claude:hover{background:#dbe7fd}
+  .btn-partial{border-color:#bfe3cb;color:var(--green);background:var(--greenbg)}
+  .btn-edit{border-color:var(--line);color:#3a424c}
+  .btn-close{border-color:#f3c7c7;color:var(--red);background:var(--redbg)}
+  .btn-trash{border-color:var(--line);color:var(--muted);max-width:64px}
+  .btn[disabled]{opacity:.5;cursor:default}
+  .actrow{display:flex;gap:10px;padding:0 16px 16px}
+  .actrow .btn{flex:1}
+  /* generic */
+  .empty{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:30px 20px;text-align:center;color:var(--muted)}
+  .empty b{color:var(--ink)}
+  .addbtn{width:100%;padding:14px;border-radius:var(--r);border:1.5px dashed #c4cad1;background:#fff;
+          color:var(--blue);font-weight:700;font-size:15px;cursor:pointer;margin-bottom:16px}
+  .addbtn:hover{background:#f6f9ff}
+  .panel{background:var(--card);border-radius:var(--r);box-shadow:var(--shadow);padding:16px;margin-bottom:16px}
+  .panel h3{margin:0 0 12px;font-size:15px}
+  .stat{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--line);font-size:14px}
+  .stat:last-child{border-bottom:none}
+  .stat .k{color:var(--muted)} .stat .v{font-weight:700;font-variant-numeric:tabular-nums}
+  .kpis{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px}
+  .kpi{background:var(--card);border-radius:14px;box-shadow:var(--shadow);padding:14px}
+  .kpi .lbl{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.6px}
+  .kpi .big{font-size:22px;font-weight:800;margin-top:4px;font-variant-numeric:tabular-nums}
+  .ruleli{font-size:13.5px;color:#2a323b;padding:7px 0 7px 22px;position:relative;border-bottom:1px solid var(--line)}
+  .ruleli:last-child{border-bottom:none}
+  .ruleli::before{content:"";position:absolute;left:4px;top:13px;width:7px;height:7px;border-radius:2px;background:var(--blue)}
+  .note{font-size:12px;color:var(--muted);background:#f7f8f9;border-radius:10px;padding:10px 12px;margin-top:10px}
+  .recon{padding:8px 0;border-bottom:1px solid var(--line)}
+  .recon:last-of-type{border-bottom:none}
+  .recon-top{display:flex;justify-content:space-between;align-items:baseline}
+  .recon-top .rtk{font-weight:800;font-size:15px}
+  .recon-top .rpnl{font-weight:700;font-variant-numeric:tabular-nums}
+  .recon-legs{font-size:12px;color:var(--muted);margin-top:2px}
+  /* modal */
+  .scrim{position:fixed;inset:0;background:rgba(15,24,34,.45);display:none;align-items:flex-end;justify-content:center;z-index:50}
+  .scrim.on{display:flex}
+  .modal{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px 22px;max-height:92vh;overflow:auto}
+  @media(min-width:560px){.scrim{align-items:center}.modal{border-radius:18px}}
+  .modal h2{margin:0 0 14px;font-size:18px}
+  .field{margin-bottom:12px}
+  .field label{display:block;font-size:12px;font-weight:700;color:var(--muted);margin-bottom:5px}
+  .field input,.field select,.field textarea{width:100%;padding:11px 12px;border:1.5px solid var(--line);border-radius:11px;font-size:15px;font-family:inherit;background:#fff}
+  .field input:focus,.field textarea:focus,.field select:focus{outline:none;border-color:var(--blue)}
+  .field .hint{font-size:11px;color:var(--muted);margin-top:4px}
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .mact{display:flex;gap:10px;margin-top:8px}
+  .chips{display:flex;gap:8px;flex-wrap:wrap}
+  .chip{padding:7px 12px;border-radius:9px;border:1.5px solid var(--line);background:#fff;font-size:13px;font-weight:700;color:#3a424c;cursor:pointer}
+  .chip:hover{border-color:var(--blue);color:var(--blue)}
+  .mact .btn{flex:1}
+  .btn-primary{background:var(--blue);color:#fff;border-color:var(--blue)}
+  .btn-ghost{background:#fff;border-color:var(--line);color:#3a424c}
+  .toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:var(--navy);color:#fff;
+         padding:10px 16px;border-radius:10px;font-size:13px;z-index:60;opacity:0;transition:opacity .2s;pointer-events:none}
+  .toast.on{opacity:1}
+  .spin{display:inline-block;width:13px;height:13px;border:2px solid currentColor;border-right-color:transparent;border-radius:50%;animation:sp .6s linear infinite;vertical-align:-2px}
+  @keyframes sp{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="htop">
+      <h1>Trade Manager</h1>
+      <div class="hbtns">
+        <button class="hbtn" id="refreshBtn">↻ Refresh</button>
+        <button class="hbtn" id="settingsBtn">⚙ Settings</button>
+      </div>
+    </div>
+    <nav id="tabs">
+      <button class="tab active" data-tab="trades">Trades</button>
+      <button class="tab" data-tab="portfolio">Portfolio</button>
+      <button class="tab" data-tab="analytics">Analytics</button>
+      <button class="tab" data-tab="strategy">Strategy</button>
+    </nav>
+    <div class="strip">
+      <span class="regime bear" id="regimeBadge">BEAR</span>
+      <span class="total" id="totalEquity">£0 total</span>
+      <span class="upd" id="updLabel"></span>
+      <span class="fx num" id="fxLabel">GBP/USD 1.30</span>
+    </div>
+  </header>
+  <main id="view"></main>
+</div>
+
+<div class="scrim" id="scrim"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================== storage ============================== */
+const KEY="tradeManager.v1";
+let mem=null; // in-memory fallback if localStorage blocked (e.g. inside a preview iframe)
+function loadRaw(){ try{return localStorage.getItem(KEY);}catch(e){return mem;} }
+function saveRaw(v){ try{localStorage.setItem(KEY,v);}catch(e){mem=v;} }
+
+const DEFAULTS={
+  trades:[],
+  equityLog:[],                       // [{d:"YYYY-MM-DD", eq:Number}] — daily total-equity snapshots
+  sync:{lastHash:"", lastTs:0},        // cloud-sync bookkeeping (local only)
+  settings:{
+    apiKey:"", model:"claude-sonnet-4-6",
+    twelveKey:"", autoRefreshMin:0,
+    githubToken:"", gistId:"",         // cloud sync (device-local, never uploaded)
+    startingPot:200000, currency:"£", fx:1.30, regime:"bear",
+    positionSize:15000,
+    targetPct:0.45, beTriggerPct:0.025, partialPct:0.15, partialFrac:0.25,
+    minStopWarn:0.02, maxStopWarn:0.08
+  }
+};
+let state=load();
+function load(){
+  const raw=loadRaw();
+  if(!raw) return structuredClone(DEFAULTS);
+  try{ const p=JSON.parse(raw);
+    return {
+      trades:p.trades||[],
+      equityLog:Array.isArray(p.equityLog)?p.equityLog:[],
+      sync:Object.assign({},DEFAULTS.sync,p.sync||{}),
+      settings:Object.assign({},DEFAULTS.settings,p.settings||{})
+    };
+  }catch(e){ return structuredClone(DEFAULTS); }
+}
+function persist(){ recordEquity(); saveRaw(JSON.stringify(state)); }
+
+/* ============================== helpers ============================== */
+const S=()=>state.settings;
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+const fmtUSD=(n)=>"$"+Math.round(n).toLocaleString("en-US");
+const fmtUSD2=(n)=>"$"+n.toLocaleString("en-US",{minimumFractionDigits:2,maximumFractionDigits:2});
+const cur=()=>S().currency;
+const fmtCur=(n)=>cur()+Math.round(n).toLocaleString("en-GB");
+const pctTxt=(x)=>(x>=0?"+":"")+(x*100).toFixed(1)+"%";
+const today=()=> new Date().toISOString().slice(0,10);
+function daysBetween(a,b){ return Math.max(0,Math.round((new Date(b)-new Date(a))/864e5)); }
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("on"); clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("on"),1900); }
+
+/* per-trade derived numbers */
+function remShares(t){ const sold=(t.partials||[]).reduce((s,p)=>s+p.shares,0); return Math.max(0,t.shares-sold); }
+function partialRealizedUSD(t){ return (t.partials||[]).reduce((s,p)=>s+p.shares*(p.price-t.entry),0); }
+function targetPrice(t){ return t.entry*(1+S().targetPct); }
+function initStopPct(t){ return (t.entry-t.initialStop)/t.entry; }
+function unrealUSD(t){ return remShares(t)*(t.currentPrice-t.entry); }
+function retPct(t){ return t.currentPrice/t.entry-1; }
+function posValueUSD(t){ return remShares(t)*t.entry; }
+function maxFurtherLossUSD(t){ return remShares(t)*(t.currentStop-t.currentPrice); }
+function beThreshold(t){ return t.entry*(1+S().beTriggerPct); }
+/* Last CONFIRMED daily close. While the market is open, today's print is not a close yet, so the
+   most recent confirmed close is the previous close — but only valid as a *post-entry* close if the
+   trade predates today (a same-day entry has no confirmed close since entry yet). When the market is
+   closed, or we have no live quote, currentPrice stands in as the latest close (preserves old behaviour). */
+function confirmedClose(t){
+  if(t.marketOpen===true && isFinite(t.prevClose)){
+    return (t.entryDate < today()) ? t.prevClose : t.entry; // same-day entry: nothing confirmed yet
+  }
+  return t.currentPrice;
+}
+function beConfirmed(t){ return confirmedClose(t)>=beThreshold(t); } // the real daily-close rule
+function beTriggered(t){ return t.currentPrice>=beThreshold(t); }    // live/intraday proxy (for "watch")
+function atBE(t){ return Math.abs(t.currentStop-t.entry)<1e-9; }
+
+/* deterministic local strategy engine — runs free, no API */
+function strategyVerdict(t){
+  const r=retPct(t), tgt=S().targetPct, beT=S().beTriggerPct, pT=S().partialPct;
+  const took=(t.partials||[]).length>0;
+  if(t.currentPrice<=t.currentStop)
+    return {act:"CLOSE",cls:"act-danger",txt:`Price ${fmtUSD2(t.currentPrice)} is at/through your stop ${fmtUSD2(t.currentStop)}. The rule is to be out — close it.`};
+  if(r>=tgt-0.005)
+    return {act:"TAKE TARGET",cls:"act-good",txt:`At ${pctTxt(r)} you're at the +${(tgt*100).toFixed(0)}% hard target. Sell the limit; don't chase higher.`};
+  if(!atBE(t) && beConfirmed(t))
+    return {act:"MOVE STOP → BE",cls:"act-warn",txt:`Confirmed close ${pctTxt(confirmedClose(t)/t.entry-1)} (≥ +${(beT*100).toFixed(1)}% trigger). Move stop to entry ${fmtUSD2(t.entry)} to remove downside.`};
+  if(!took && r>=pT-0.003)
+    return {act:"PARTIAL (optional)",cls:"act-warn",txt:`At +${(pT*100).toFixed(0)}% you may trim ${(S().partialFrac*100).toFixed(0)}% as psychological insurance — it's roughly P&L-neutral, so only if it helps you hold.`};
+  if(!atBE(t) && beTriggered(t))
+    return {act:"WATCH — BE on close",cls:"act-hold",txt:`Live ${pctTxt(r)} is past the +${(beT*100).toFixed(1)}% trigger, but breakeven is a daily-close rule. Move the stop to ${fmtUSD2(t.entry)} only if it closes here.`};
+  return {act:"HOLD",cls:"act-hold",txt:`At ${pctTxt(r)} with stop ${atBE(t)?"at breakeven":fmtUSD2(t.currentStop)}. Nothing to do — let it work toward +${(tgt*100).toFixed(0)}%.`};
+}
+function statusBadge(t){
+  const took=(t.partials||[]).length>0;
+  if(retPct(t)>=S().targetPct-0.005) return {t:"At target",c:"b-target"};
+  if(took) return {t:"Partial taken",c:"b-partial"};
+  if(atBE(t)) return {t:"At breakeven",c:"b-be"};
+  return {t:"Original stop",c:"b-orig"};
+}
+
+/* portfolio aggregates (GBP) */
+function agg(){
+  const fx=S().fx||1, openT=state.trades.filter(t=>t.status==="open"), closedT=state.trades.filter(t=>t.status==="closed");
+  const usd2gbp=(u)=>u/fx;
+  let realizedUSD=0;
+  closedT.forEach(t=>{ realizedUSD+= (t.shares-(t.partials||[]).reduce((s,p)=>s+p.shares,0))*(t.exitPrice-t.entry) + partialRealizedUSD(t); });
+  openT.forEach(t=> realizedUSD+=partialRealizedUSD(t));
+  const unrealUSDtot=openT.reduce((s,t)=>s+unrealUSD(t),0);
+  const deployedMktUSD=openT.reduce((s,t)=>s+remShares(t)*t.currentPrice,0);
+  const deployedCostUSD=openT.reduce((s,t)=>s+posValueUSD(t),0);
+  const startPot=S().startingPot;
+  const equity=startPot+usd2gbp(realizedUSD)+usd2gbp(unrealUSDtot);
+  const cash=startPot+usd2gbp(realizedUSD)-usd2gbp(deployedCostUSD);
+  return {fx,openT,closedT,realizedGBP:usd2gbp(realizedUSD),unrealGBP:usd2gbp(unrealUSDtot),
+    deployedMktGBP:usd2gbp(deployedMktUSD),equity,cash,startPot};
+}
+
+/* total realized USD for one trade: banked partials + (if closed) remaining shares at exit.
+   This is the reconciliation — e.g. a 25%/25%/50% scale-out sums all three legs. */
+function tradeRealizedUSD(t){
+  let v=partialRealizedUSD(t);
+  if(t.status==="closed" && t.exitPrice!=null) v+=remShares(t)*(t.exitPrice-t.entry);
+  return v;
+}
+
+/* daily total-equity snapshot — one point per calendar day, last write wins; never throws */
+function recordEquity(){
+  try{
+    const eq=agg().equity;
+    if(!isFinite(eq)) return;
+    const d=today(), log=state.equityLog||(state.equityLog=[]);
+    const last=log[log.length-1];
+    if(last && last.d===d) last.eq=eq; else log.push({d,eq});
+    if(log.length>800) log.splice(0,log.length-800);
+  }catch(e){}
+}
+
+/* progress series for the equity graph: anchored at the baseline budget, then daily snapshots */
+function progressSeries(a){
+  const log=(state.equityLog||[]).filter(p=>p&&isFinite(p.eq)&&p.d).slice().sort((x,y)=>x.d<y.d?-1:1);
+  const entryDates=state.trades.map(t=>t.entryDate).filter(Boolean).sort();
+  const firstDate=entryDates[0]||(log[0]&&log[0].d)||today();
+  const pts=[{d:firstDate,eq:a.startPot}];                 // opening point = baseline budget
+  log.forEach(p=>{ if(p.d>=firstDate) pts.push({d:p.d,eq:p.eq}); });
+  const lastPt=pts[pts.length-1];
+  if(lastPt.d!==today()) pts.push({d:today(),eq:a.equity}); else lastPt.eq=a.equity;
+  return pts;
+}
+
+/* ============================== render ============================== */
+let activeTab="trades";
+function render(){
+  // header strip
+  const a=agg();
+  document.getElementById("totalEquity").textContent=fmtCur(a.equity)+" total";
+  document.getElementById("fxLabel").textContent="GBP/USD "+(S().fx).toFixed(4);
+  const ul=document.getElementById("updLabel"); if(ul) ul.textContent=lastQuoteTs?agoText(lastQuoteTs):"";
+  const rb=document.getElementById("regimeBadge"), bull=S().regime==="bull";
+  rb.textContent=bull?"BULL":"BEAR"; rb.className="regime "+(bull?"bull":"bear");
+  document.querySelectorAll(".tab").forEach(b=>b.classList.toggle("active",b.dataset.tab===activeTab));
+  const v=document.getElementById("view");
+  if(activeTab==="trades") v.innerHTML=viewTrades();
+  else if(activeTab==="portfolio") v.innerHTML=viewPortfolio(a);
+  else if(activeTab==="analytics") v.innerHTML=viewAnalytics(a);
+  else v.innerHTML=viewStrategy();
+}
+
+function sliderHTML(t){
+  const LO=-0.10, HI=0.50, span=HI-LO;
+  const x=(p)=>Math.max(0,Math.min(100,((p-LO)/span)*100));
+  const r=retPct(t), tgt=S().targetPct, pT=S().partialPct;
+  const stopP=(t.currentStop-t.entry)/t.entry;
+  const cx=x(r), zero=x(0), col=r>=0?"var(--green)":"var(--red)";
+  const fillL=Math.min(cx,zero), fillW=Math.abs(cx-zero);
+  return `<div class="slider">
+    <div class="track">
+      <div class="fill" style="left:${fillL}%;width:${fillW}%;background:${col}"></div>
+      <div class="mk mk-line" style="left:${x(stopP)}%;background:${stopP>=0?'var(--green)':'var(--red)'}"></div>
+      <div class="mk mk-line" style="left:${x(0)}%;background:var(--blue)"></div>
+      <div class="mk mk-diam" style="left:${x(pT)}%"></div>
+      <div class="mk mk-line" style="left:${x(tgt)}%;height:18px;background:var(--green)"></div>
+      <div class="mk mk-tl" style="left:${x(tgt)}%">+${(tgt*100).toFixed(0)}%</div>
+      <div class="mk mk-entry" style="left:${x(0)}%"></div>
+      <div class="mk mk-tl" style="left:${cx}%;color:${col}">${pctTxt(r)}</div>
+      <div class="mk mk-dot" style="left:${cx}%;background:${col}"></div>
+    </div>
+    <div style="display:flex;justify-content:space-between" class="axis">
+      <span>-10%</span><span>0%</span><span>+15%</span><span>+30%</span><span>+45%</span><span>+50%</span>
+    </div>
+  </div>`;
+}
+
+function cardHTML(t){
+  const r=retPct(t), b=statusBadge(t), v=strategyVerdict(t);
+  const dh=daysBetween(t.entryDate,today());
+  const aboveStop=(t.currentPrice-t.currentStop)/t.entry;
+  const took=(t.partials||[]).length>0;
+  const soldSh=(t.partials||[]).reduce((s,p)=>s+p.shares,0);
+  const part = took ? (t.partials||[]).map((p,i)=>
+      `<div class="dr"><span class="k">Sold #${i+1}</span><span class="v mono pos">${p.shares} @ ${fmtUSD2(p.price)} <span class="muted">(${pctTxt(p.price/t.entry-1)})</span></span></div>`
+    ).join("") +
+      `<div class="dr"><span class="k">Scaled out</span><span class="v mono">${soldSh} of ${t.shares} (${((soldSh/t.shares)*100).toFixed(0)}%) · banked ${fmtUSD(partialRealizedUSD(t))}</span></div>`
+    : "";
+  const claudeBlock = t.advice? `<div class="adv-claude"><span class="tag">Claude · ${t.advice.model||""}</span>${escapeHtml(t.advice.text)}</div>`:"";
+  return `<div class="card" data-id="${t.id}">
+    <div class="chead">
+      <div class="crow1">
+        <div class="tkwrap"><span class="tk">${escapeHtml(t.ticker)}</span><span class="badge ${b.c}">${b.t}</span></div>
+        <div class="bigret">
+          <div class="pct ${r>=0?'pos':'neg'} num">${pctTxt(r)}</div>
+          <div class="amt ${unrealUSD(t)>=0?'pos':'neg'} num">${unrealUSD(t)>=0?'+':'−'}${fmtUSD(Math.abs(unrealUSD(t)))}</div>
+        </div>
+      </div>
+      <div class="sub num">Entry <b>${fmtUSD2(t.entry)}</b> · <b>${remShares(t)}</b> shares · <b>${dh}d</b> · <b class="${aboveStop>=0?'pos':'neg'}">${pctTxt(aboveStop)} above stop</b></div>
+    </div>
+    ${sliderHTML(t)}
+    <div class="rows num">
+      <div class="dr"><span class="k">Current price</span><span class="v mono">${fmtUSD2(t.currentPrice)}</span></div>
+      <div class="dr"><span class="k">Stop</span><span class="v mono">${fmtUSD2(t.currentStop)}${atBE(t)?' · BE':''}</span></div>
+      <div class="dr"><span class="k">+45% target</span><span class="v mono">${fmtUSD2(targetPrice(t))}</span></div>
+      <div class="dr"><span class="k">Max further loss</span><span class="v mono ${maxFurtherLossUSD(t)<0?'neg':'pos'}">${fmtUSD(maxFurtherLossUSD(t))}</span></div>
+      <div class="dr"><span class="k">Position value</span><span class="v mono">${fmtUSD(posValueUSD(t))}</span></div>
+      ${part}
+    </div>
+    <div class="advice">
+      <div class="adv-head">Strategy check<span class="adv-act ${v.cls}">${v.act}</span></div>
+      <div class="adv-body">${v.txt}</div>
+      ${claudeBlock}
+    </div>
+    <div class="acts">
+      <button class="btn btn-claude" data-act="claude">Ask Claude about this trade</button>
+      <button class="btn btn-partial" data-act="partial">Take partial</button>
+      <button class="btn btn-edit" data-act="edit">Edit</button>
+      <button class="btn btn-close" data-act="close">Close</button>
+      <button class="btn btn-trash" data-act="trash">🗑</button>
+    </div>
+  </div>`;
+}
+
+function viewTrades(){
+  const open=state.trades.filter(t=>t.status==="open");
+  let h=`<button class="addbtn" id="addBtn">+ Open a new trade</button>`;
+  if(!open.length){
+    h+=`<div class="empty"><b>No active positions.</b><br>Open a trade to start tracking it against your strategy.</div>`;
+  }else{
+    h+=`<div class="sectlabel">Active positions · ${open.length}</div>`;
+    h+=open.map(cardHTML).join("");
+  }
+  return h;
+}
+
+function progressChartSVG(series,a){
+  const W=480,H=140,pad=8;
+  const t0=new Date(series[0].d).getTime(), t1=new Date(series[series.length-1].d).getTime(), span=(t1-t0)||1;
+  const ys=series.map(p=>p.eq).concat([a.startPot]);
+  const mn=Math.min(...ys), mx=Math.max(...ys), yspan=(mx-mn)||1;
+  const sx=(d)=> pad+((new Date(d).getTime()-t0)/span)*(W-2*pad);
+  const sy=(y)=> H-pad-((y-mn)/yspan)*(H-2*pad);
+  const line=series.map((p,i)=>(i?'L':'M')+sx(p.d).toFixed(1)+' '+sy(p.eq).toFixed(1)).join(' ');
+  const up=a.equity>=a.startPot, baseY=sy(a.startPot).toFixed(1);
+  const area=`M ${sx(series[0].d).toFixed(1)} ${baseY} `+series.map(p=>'L'+sx(p.d).toFixed(1)+' '+sy(p.eq).toFixed(1)).join(' ')+` L ${sx(series[series.length-1].d).toFixed(1)} ${baseY} Z`;
+  return `<svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
+    <path d="${area}" fill="${up?'rgba(22,163,74,.10)':'rgba(220,38,38,.10)'}"/>
+    <line x1="${pad}" y1="${baseY}" x2="${W-pad}" y2="${baseY}" stroke="#c9ccd1" stroke-dasharray="4 4"/>
+    <path d="${line}" fill="none" stroke="${up?'var(--green)':'var(--red)'}" stroke-width="2.5" stroke-linejoin="round"/>
+  </svg>`;
+}
+
+function viewPortfolio(a){
+  const totRet=(a.equity-a.startPot)/a.startPot;
+  const series=progressSeries(a);
+  return `
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">Total equity</div><div class="big num">${fmtCur(a.equity)}</div></div>
+    <div class="kpi"><div class="lbl">Total return</div><div class="big num ${totRet>=0?'pos':'neg'}">${pctTxt(totRet)}</div></div>
+  </div>
+  <div class="panel">
+    <h3>Progress from baseline</h3>
+    ${progressChartSVG(series,a)}
+    <div style="display:flex;justify-content:space-between" class="axis"><span>${series[0].d}</span><span>${today()}</span></div>
+    <div class="note">Total equity (realised + open) tracked against your ${fmtCur(a.startPot)} baseline (dashed). One point per day; the line builds as you use the app.</div>
+  </div>
+  <div class="panel">
+    <h3>Trading pot</h3>
+    <div class="stat"><span class="k">Baseline budget</span><span class="v">${fmtCur(a.startPot)}</span></div>
+    <div class="stat"><span class="k">Realised P&L</span><span class="v ${a.realizedGBP>=0?'pos':'neg'}">${(a.realizedGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.realizedGBP)).toLocaleString('en-GB')}</span></div>
+    <div class="stat"><span class="k">Open unrealised P&L</span><span class="v ${a.unrealGBP>=0?'pos':'neg'}">${(a.unrealGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.unrealGBP)).toLocaleString('en-GB')}</span></div>
+    <div class="stat"><span class="k">Cash available</span><span class="v">${fmtCur(a.cash)}</span></div>
+    <div class="stat"><span class="k">Deployed (mkt value)</span><span class="v">${fmtCur(a.deployedMktGBP)}</span></div>
+    <div class="stat"><span class="k">Open positions</span><span class="v">${a.openT.length}</span></div>
+  </div>
+  <div class="panel">
+    <h3>Market regime</h3>
+    <div class="stat"><span class="k">Status</span><span class="v ${S().regime==='bull'?'pos':'neg'}">${S().regime==='bull'?'BULL — new entries allowed':'BEAR — no new entries'}</span></div>
+    <div class="note">Your rule: only take new entries when the Nasdaq (ONEQ) 10-day EMA is above the 20-day EMA. Toggle this from the badge in the header once you've checked the chart.</div>
+  </div>`;
+}
+
+function viewAnalytics(a){
+  const c=a.closedT;
+  if(!c.length) return `<div class="empty"><b>No closed trades yet.</b><br>Stats appear here as you bank trades, measured against your starting pot.</div>`;
+  const rets=c.map(t=>{
+    const rem=t.shares-(t.partials||[]).reduce((s,p)=>s+p.shares,0);
+    const pnl=rem*(t.exitPrice-t.entry)+partialRealizedUSD(t);
+    return {pnl, ret:(t.exitPrice/t.entry-1)};
+  });
+  const wins=rets.filter(x=>x.pnl>0), losses=rets.filter(x=>x.pnl<=0);
+  const wr=wins.length/rets.length;
+  const avg=rets.reduce((s,x)=>s+x.ret,0)/rets.length;
+  const grossW=wins.reduce((s,x)=>s+x.pnl,0), grossL=Math.abs(losses.reduce((s,x)=>s+x.pnl,0));
+  const pf=grossL>0?grossW/grossL:Infinity;
+  const exp=rets.reduce((s,x)=>s+x.pnl,0)/rets.length;
+  const hitTarget=rets.filter(x=>x.ret>=S().targetPct-0.01).length;
+  const recon=c.slice().reverse().map(t=>{
+    const real=tradeRealizedUSD(t), realGBP=real/(S().fx||1);
+    const legs=(t.partials||[]).map(p=>`${p.shares}@${fmtUSD2(p.price)}`)
+      .concat(remShares(t)>0?[`${remShares(t)}@${fmtUSD2(t.exitPrice)} close`]:[]).join(" · ");
+    return `<div class="recon">
+      <div class="recon-top"><span class="rtk">${escapeHtml(t.ticker)}</span>
+        <span class="rpnl ${realGBP>=0?'pos':'neg'} num">${realGBP>=0?'+':'−'}${cur()+Math.round(Math.abs(realGBP)).toLocaleString('en-GB')}</span></div>
+      <div class="recon-legs num">${t.shares} sh from ${fmtUSD2(t.entry)} → ${legs||'closed'}</div>
+    </div>`;
+  }).join("");
+  // equity curve (GBP) over closed sequence
+  let eq=a.startPot, pts=[{x:0,y:eq}];
+  c.forEach((t,i)=>{ const rem=t.shares-(t.partials||[]).reduce((s,p)=>s+p.shares,0);
+    eq+=(rem*(t.exitPrice-t.entry)+partialRealizedUSD(t))/(S().fx||1); pts.push({x:i+1,y:eq}); });
+  const ys=pts.map(p=>p.y), mn=Math.min(...ys), mx=Math.max(...ys), W=480,H=130,pad=6;
+  const sx=(i)=> pad+(i/(pts.length-1||1))*(W-2*pad);
+  const sy=(y)=> H-pad-((y-mn)/((mx-mn)||1))*(H-2*pad);
+  const path=pts.map((p,i)=>(i?'L':'M')+sx(i).toFixed(1)+' '+sy(p.y).toFixed(1)).join(' ');
+  return `
+  <div class="kpis">
+    <div class="kpi"><div class="lbl">Win rate</div><div class="big num">${(wr*100).toFixed(0)}%</div></div>
+    <div class="kpi"><div class="lbl">Realised P&L</div><div class="big num ${a.realizedGBP>=0?'pos':'neg'}">${(a.realizedGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.realizedGBP)).toLocaleString('en-GB')}</div></div>
+  </div>
+  <div class="panel">
+    <h3>Equity curve (closed trades)</h3>
+    <svg viewBox="0 0 ${W} ${H}" width="100%" style="display:block">
+      <line x1="${pad}" y1="${sy(a.startPot).toFixed(1)}" x2="${W-pad}" y2="${sy(a.startPot).toFixed(1)}" stroke="#d8dbdf" stroke-dasharray="4 4"/>
+      <path d="${path}" fill="none" stroke="${eq>=a.startPot?'var(--green)':'var(--red)'}" stroke-width="2.5" stroke-linejoin="round"/>
+    </svg>
+    <div class="note">Dashed line = starting pot (${fmtCur(a.startPot)}).</div>
+  </div>
+  <div class="panel">
+    <h3>Trade stats vs strategy</h3>
+    <div class="stat"><span class="k">Closed trades</span><span class="v">${c.length}</span></div>
+    <div class="stat"><span class="k">Wins / losses</span><span class="v">${wins.length} / ${losses.length}</span></div>
+    <div class="stat"><span class="k">Average return</span><span class="v ${avg>=0?'pos':'neg'}">${pctTxt(avg)}</span></div>
+    <div class="stat"><span class="k">Profit factor</span><span class="v">${pf===Infinity?'∞':pf.toFixed(2)}</span></div>
+    <div class="stat"><span class="k">Expectancy / trade</span><span class="v ${exp>=0?'pos':'neg'}">${fmtUSD(exp)}</span></div>
+    <div class="stat"><span class="k">Reached +45% target</span><span class="v">${hitTarget} of ${c.length}</span></div>
+  </div>
+  <div class="panel">
+    <h3>Closed-trade reconciliation</h3>
+    ${recon}
+    <div class="note">Each line folds every scale-out leg plus the final close into one realised figure (GBP).</div>
+  </div>`;
+}
+
+function viewStrategy(){
+  const s=S();
+  return `
+  <div class="panel">
+    <h3>Your validated rule set</h3>
+    <div class="ruleli">Regime filter: only new entries when ONEQ 10-EMA &gt; 20-EMA (bull only).</div>
+    <div class="ruleli">Entry: break above the 30-min opening-range high after screening.</div>
+    <div class="ruleli">Initial stop: low of the opening day.</div>
+    <div class="ruleli">Position size: fixed ${fmtUSD(s.positionSize)} (tiering adds nothing under this cap).</div>
+    <div class="ruleli">Take-profit: hard limit at +${(s.targetPct*100).toFixed(0)}% (entry × ${(1+s.targetPct).toFixed(2)}). Don't chase past it.</div>
+    <div class="ruleli">Breakeven: once a daily close is ≥ +${(s.beTriggerPct*100).toFixed(1)}% above entry, move stop to entry.</div>
+    <div class="ruleli">Don't skip sub-2% stops — your data shows they're your best bucket.</div>
+    <div class="ruleli">Avoid initial stops wider than ~${(s.maxStopWarn*100).toFixed(0)}%.</div>
+    <div class="ruleli">Partial at +${(s.partialPct*100).toFixed(0)}% (sell ${(s.partialFrac*100).toFixed(0)}%) is optional — ~P&L-neutral, psychological only.</div>
+    <div class="note">Honest caveat baked into the advice: the +45% target edge rests on only a handful of big winners in the backtest, so it's a working hypothesis — apply it, but don't treat deviations as disasters. This is a personal tracking tool, not financial advice.</div>
+  </div>
+  <div class="panel">
+    <h3>How the advice works</h3>
+    <div class="ruleli">Every card shows an instant <b>Strategy check</b> computed locally from the rules above — no key needed.</div>
+    <div class="ruleli"><b>Ask Claude</b> sends that position's live numbers to the Anthropic API (your key) for a richer read.</div>
+    <div class="note">Add your Anthropic API key in Settings to enable the Claude button. The key is stored only in this browser and is never part of the GitHub repo.</div>
+  </div>`;
+}
+
+function escapeHtml(s){return (s||"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));}
+
+/* ============================== modals ============================== */
+const scrim=document.getElementById("scrim"), modal=document.getElementById("modal");
+function openModal(html){ modal.innerHTML=html; scrim.classList.add("on"); }
+function closeModal(){ scrim.classList.remove("on"); }
+scrim.addEventListener("click",e=>{ if(e.target===scrim) closeModal(); });
+
+function tradeForm(t){
+  const isNew=!t;
+  t=t||{ticker:"",entry:"",initialStop:"",currentPrice:"",entryDate:today()};
+  const sharesSuggest = t.entry? Math.floor(S().positionSize/(+t.entry||1)) : "";
+  return `<h2>${isNew?'Open a trade':'Edit '+escapeHtml(t.ticker)}</h2>
+    <div class="grid2">
+      <div class="field"><label>Ticker</label><input id="f_ticker" value="${escapeHtml(t.ticker)}" placeholder="VOYA" autocapitalize="characters"></div>
+      <div class="field"><label>Entry date</label><input id="f_date" type="date" value="${t.entryDate||today()}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Entry price ($)</label><input id="f_entry" type="number" step="any" value="${t.entry}" placeholder="85.65"></div>
+      <div class="field"><label>Shares</label><input id="f_shares" type="number" step="1" value="${t.shares??sharesSuggest}" placeholder="${sharesSuggest||'175'}"><div class="hint">≈ ${fmtUSD(S().positionSize)} at entry</div></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Initial stop ($) — opening-day low</label><input id="f_stop" type="number" step="any" value="${t.initialStop}" placeholder="82.10"></div>
+      <div class="field"><label>Current price ($)</label><input id="f_cur" type="number" step="any" value="${t.currentPrice}" placeholder="89.14"></div>
+    </div>
+    ${!isNew?`<div class="field"><label>Current stop ($)</label><input id="f_curstop" type="number" step="any" value="${t.currentStop}"></div>`:""}
+    <div id="stopwarn"></div>
+    <div class="mact">
+      <button class="btn btn-ghost" data-m="cancel">Cancel</button>
+      <button class="btn btn-primary" data-m="save" data-id="${t.id||''}">${isNew?'Open trade':'Save'}</button>
+    </div>`;
+}
+
+function partialForm(t){
+  const rem=remShares(t), origPct=(rem/t.shares*100).toFixed(0), sugg=Math.round(rem*S().partialFrac);
+  return `<h2>Take partial · ${escapeHtml(t.ticker)}</h2>
+    <div class="note" style="margin-bottom:12px">${rem} of ${t.shares} shares left (${origPct}% of the original position). Sell any slice — e.g. 25% now, more later; it all reconciles when you finally close.</div>
+    <div class="field"><label>Quick size (of remaining)</label>
+      <div class="chips">${[["25%",0.25],["33%",0.3333],["50%",0.5],["All",1]].map(([l,f])=>`<button type="button" class="chip" data-frac="${f}" data-rem="${rem}">${l}</button>`).join("")}</div></div>
+    <div class="grid2">
+      <div class="field"><label>Shares to sell</label><input id="p_shares" type="number" step="1" value="${sugg}" max="${rem}"><div class="hint">${rem} held</div></div>
+      <div class="field"><label>Fill price ($)</label><input id="p_price" type="number" step="any" value="${(+t.currentPrice||t.entry*(1+S().partialPct)).toFixed(2)}"></div>
+    </div>
+    <div class="mact"><button class="btn btn-ghost" data-m="cancel">Cancel</button>
+    <button class="btn btn-primary" data-m="dopartial" data-id="${t.id}">Bank partial</button></div>`;
+}
+
+function closeForm(t){
+  const rem=remShares(t), done=rem===0, banked=partialRealizedUSD(t), nP=(t.partials||[]).length;
+  return `<h2>Close · ${escapeHtml(t.ticker)}</h2>
+    <div class="note" style="margin-bottom:12px">${done
+      ? `All ${t.shares} shares already scaled out (banked ${fmtUSD(banked)}). Closing just files the trade.`
+      : `Closing the remaining <b>${rem}</b> of ${t.shares} shares.${nP?` Already banked ${fmtUSD(banked)} across ${nP} partial${nP>1?"s":""} — this reconciles the rest.`:""}`}</div>
+    <div class="grid2">
+      <div class="field"><label>Exit price ($)${done?" (optional)":""}</label><input id="c_price" type="number" step="any" value="${t.currentPrice}"></div>
+      <div class="field"><label>Exit date</label><input id="c_date" type="date" value="${today()}"></div>
+    </div>
+    <div class="mact"><button class="btn btn-ghost" data-m="cancel">Cancel</button>
+    <button class="btn btn-close" data-m="doclose" data-id="${t.id}">Close trade</button></div>`;
+}
+
+function settingsForm(){
+  const s=S();
+  return `<h2>Settings</h2>
+    <div class="field"><label>Anthropic API key (for the Claude button)</label>
+      <input id="s_key" type="password" value="${escapeHtml(s.apiKey)}" placeholder="sk-ant-...">
+      <div class="hint">Stored only in this browser. Get one at console.anthropic.com → API keys.</div></div>
+    <div class="field"><label>Claude model</label><input id="s_model" value="${escapeHtml(s.model)}"><div class="hint">e.g. claude-sonnet-4-6 or claude-haiku-4-5-20251001 (cheaper).</div></div>
+    <div class="field"><label>Twelve Data API key (for live prices)</label>
+      <input id="s_td" type="password" value="${escapeHtml(s.twelveKey)}" placeholder="your Twelve Data key">
+      <div class="hint">Stored only in this browser, never in the repo. One batched call per refresh covers all open tickers.</div></div>
+    <div class="field"><label>Auto-refresh</label>
+      <select id="s_auto">
+        ${[[0,"Off — manual only"],[1,"Every 1 min"],[2,"Every 2 min"],[5,"Every 5 min"],[15,"Every 15 min"]]
+          .map(([v,l])=>`<option value="${v}" ${(+s.autoRefreshMin||0)===v?"selected":""}>${l}</option>`).join("")}
+      </select>
+      <div class="hint">Only polls when the tab is visible and US market hours look open. Each ticker ≈ 1 credit/refresh against your Grow 55/min.</div></div>
+    <div class="note" style="margin-bottom:12px">Live prices call Twelve Data directly from your browser. If a refresh fails with a network/CORS error, your browser is blocking the cross-origin call — manual price entry still works, and we can talk about a no-backend workaround.</div>
+    <div class="grid2">
+      <div class="field"><label>Baseline trading budget (${cur()})</label><input id="s_pot" type="number" step="any" value="${s.startingPot}"><div class="hint">Your opening pot — the anchor for the progress graph.</div></div>
+      <div class="field"><label>GBP/USD rate</label><input id="s_fx" type="number" step="any" value="${s.fx}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Position size ($)</label><input id="s_size" type="number" step="any" value="${s.positionSize}"></div>
+      <div class="field"><label>Target %</label><input id="s_tgt" type="number" step="any" value="${(s.targetPct*100)}"></div>
+    </div>
+    <div class="grid2">
+      <div class="field"><label>Breakeven trigger %</label><input id="s_be" type="number" step="any" value="${(s.beTriggerPct*100)}"></div>
+      <div class="field"><label>Partial at %</label><input id="s_pp" type="number" step="any" value="${(s.partialPct*100)}"></div>
+    </div>
+    <div class="sectlabel" style="margin:8px 2px 10px">Cloud sync · GitHub Gist</div>
+    <div class="field"><label>GitHub token (classic — “gist” scope only)</label>
+      <input id="s_ghtoken" type="password" value="${escapeHtml(s.githubToken)}" placeholder="ghp_…">
+      <div class="hint">github.com/settings/tokens → Generate new (classic), tick <b>only</b> gist. Stored in this browser; never uploaded.</div></div>
+    <div class="field"><label>Gist ID</label>
+      <input id="s_gistid" value="${escapeHtml(s.gistId)}" placeholder="(blank → use Create)">
+      <div class="hint">${syncStatusText()}</div></div>
+    <div class="mact" style="margin-bottom:8px">
+      <button class="btn btn-ghost" data-m="gistcreate">Create gist</button>
+      <button class="btn btn-ghost" data-m="cloudpull">Pull…</button>
+      <button class="btn btn-primary" data-m="cloudpush">Push…</button>
+    </div>
+    <div class="note" style="margin-bottom:12px">Every upload asks you to confirm and warns if the cloud copy changed on another device. API keys stay local — only trades, history and strategy settings sync.</div>
+    <div class="mact" style="margin-bottom:10px"><button class="btn btn-ghost" data-m="export">Backup (JSON)</button><button class="btn btn-ghost" data-m="import">Restore</button></div>
+    <input type="file" id="importFile" accept="application/json" style="display:none">
+    <div class="mact"><button class="btn btn-ghost" data-m="cancel">Cancel</button><button class="btn btn-primary" data-m="savesettings">Save</button></div>
+    <div class="note" style="margin-top:12px">Danger zone — <a href="#" data-m="wipe" style="color:var(--red)">erase all data</a>.</div>`;
+}
+
+/* ============================== events ============================== */
+document.getElementById("tabs").addEventListener("click",e=>{ const b=e.target.closest(".tab"); if(b){activeTab=b.dataset.tab; render();} });
+document.getElementById("refreshBtn").addEventListener("click",()=>refreshPrices(true));
+document.getElementById("settingsBtn").addEventListener("click",()=>openModal(settingsForm()));
+document.getElementById("regimeBadge").addEventListener("click",()=>{ S().regime=S().regime==="bull"?"bear":"bull"; persist(); render(); });
+
+document.getElementById("view").addEventListener("click",e=>{
+  if(e.target.id==="addBtn"){ openModal(tradeForm(null)); return; }
+  const card=e.target.closest(".card"); if(!card) return;
+  const t=state.trades.find(x=>x.id===card.dataset.id); if(!t) return;
+  const act=e.target.closest("[data-act]")?.dataset.act;
+  if(act==="edit") openModal(tradeForm(t));
+  else if(act==="partial") openModal(partialForm(t));
+  else if(act==="close") openModal(closeForm(t));
+  else if(act==="trash"){ if(confirm("Delete "+t.ticker+"? This can't be undone.")){ state.trades=state.trades.filter(x=>x.id!==t.id); persist(); render(); } }
+  else if(act==="claude") askClaude(t,e.target.closest("[data-act]"));
+});
+
+modal.addEventListener("click",e=>{
+  const fr=e.target.closest("[data-frac]");
+  if(fr){ const rem=+fr.dataset.rem||0, el=document.getElementById("p_shares");
+    if(el) el.value=Math.max(1,Math.round(rem*(+fr.dataset.frac||0))); return; }
+  const m=e.target.closest("[data-m]")?.dataset.m;
+  if(!m) return;
+  if(m==="cancel"){ closeModal(); return; }
+  if(m==="save"){ saveTrade(e.target.dataset.id); return; }
+  if(m==="dopartial"){ doPartial(e.target.dataset.id); return; }
+  if(m==="doclose"){ doClose(e.target.dataset.id); return; }
+  if(m==="savesettings"){ saveSettings(); return; }
+  if(m==="export"){ doExport(); return; }
+  if(m==="import"){ document.getElementById("importFile").click(); return; }
+  if(m==="settings"){ openModal(settingsForm()); return; }
+  if(m==="gistcreate"){ cloudCreate(); return; }
+  if(m==="cloudpush"){ cloudPushStart(); return; }
+  if(m==="cloudpush_do"){ cloudPushDo(); return; }
+  if(m==="cloudpull"){ cloudPullStart(); return; }
+  if(m==="cloudpull_do"){ cloudPullDo(); return; }
+  if(m==="wipe"){ e.preventDefault(); if(confirm("Erase ALL trades and settings?")){ state=structuredClone(DEFAULTS); persist(); closeModal(); render(); } return; }
+});
+modal.addEventListener("change",e=>{ if(e.target.id==="importFile") doImport(e.target.files[0]); });
+
+function val(id){ const el=document.getElementById(id); return el?el.value.trim():""; }
+function num(id){ const v=parseFloat(val(id)); return isNaN(v)?null:v; }
+
+function saveTrade(id){
+  const ticker=val("f_ticker").toUpperCase(), entry=num("f_entry"), shares=num("f_shares"),
+        stop=num("f_stop"), curp=num("f_cur"), date=val("f_date")||today();
+  if(!ticker||entry==null||shares==null||stop==null){ toast("Fill ticker, entry, shares and stop"); return; }
+  const cur=curp!=null?curp:entry;
+  if(id){
+    const t=state.trades.find(x=>x.id===id);
+    Object.assign(t,{ticker,entry,shares,initialStop:stop,currentPrice:cur,entryDate:date});
+    if(num("f_curstop")!=null) t.currentStop=num("f_curstop");
+  }else{
+    state.trades.push({id:uid(),ticker,entry,shares,initialStop:stop,currentStop:stop,
+      currentPrice:cur,entryDate:date,status:"open",partials:[],advice:null});
+    const sd=(entry-stop)/entry;
+    if(sd>S().maxStopWarn) toast(`Heads up: stop is ${(sd*100).toFixed(1)}% wide (rule: avoid > ${(S().maxStopWarn*100).toFixed(0)}%)`);
+  }
+  persist(); closeModal(); render();
+}
+function doPartial(id){
+  const t=state.trades.find(x=>x.id===id); const sh=num("p_shares"), pr=num("p_price");
+  if(sh==null||pr==null||sh<=0){ toast("Enter shares and price"); return; }
+  if(sh>remShares(t)){ toast("More than you hold ("+remShares(t)+")"); return; }
+  t.partials=t.partials||[]; t.partials.push({shares:sh,price:pr,date:today()});
+  persist(); closeModal(); render();
+  toast(remShares(t)===0 ? `${t.ticker} fully scaled out — close it to finish` : `Banked ${sh} @ ${fmtUSD2(pr)}`);
+}
+function doClose(id){
+  const t=state.trades.find(x=>x.id===id); const pr=num("c_price"), d=val("c_date")||today();
+  const rem=remShares(t);
+  if(rem>0 && pr==null){ toast("Enter exit price"); return; }
+  t.status="closed";
+  t.exitPrice=(pr!=null?pr:(t.partials&&t.partials.length?t.partials[t.partials.length-1].price:t.entry));
+  t.exitDate=d; if(rem>0) t.currentPrice=t.exitPrice;
+  const real=tradeRealizedUSD(t);
+  persist(); closeModal(); render();
+  toast(`${t.ticker} closed · realized ${real>=0?'+':'−'}${fmtUSD(Math.abs(real))}`);
+}
+function readSettingsFields(){
+  if(!document.getElementById("s_key")) return; // settings form not open
+  const s=S();
+  s.apiKey=val("s_key"); s.model=val("s_model")||s.model; s.twelveKey=val("s_td");
+  const av=document.getElementById("s_auto"); if(av) s.autoRefreshMin=+av.value||0;
+  s.githubToken=val("s_ghtoken"); s.gistId=val("s_gistid");
+  s.startingPot=num("s_pot")??s.startingPot; s.fx=num("s_fx")??s.fx;
+  s.positionSize=num("s_size")??s.positionSize;
+  if(num("s_tgt")!=null) s.targetPct=num("s_tgt")/100;
+  if(num("s_be")!=null) s.beTriggerPct=num("s_be")/100;
+  if(num("s_pp")!=null) s.partialPct=num("s_pp")/100;
+  persist();
+}
+function saveSettings(){ readSettingsFields(); setupAutoRefresh(); closeModal(); render(); toast("Settings saved"); }
+function doExport(){
+  const blob=new Blob([JSON.stringify(state,null,2)],{type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="trade-manager-backup-"+today()+".json"; a.click(); URL.revokeObjectURL(a.href);
+}
+function doImport(file){
+  if(!file) return; const fr=new FileReader();
+  fr.onload=()=>{ try{ const p=JSON.parse(fr.result);
+    state={trades:p.trades||[], equityLog:Array.isArray(p.equityLog)?p.equityLog:[], sync:Object.assign({},DEFAULTS.sync,p.sync||{}), settings:Object.assign({},DEFAULTS.settings,p.settings||{})};
+    persist(); closeModal(); render(); toast("Data restored");
+  }catch(e){ toast("Couldn't read that file"); } };
+  fr.readAsText(file);
+}
+
+/* ============================== Claude ============================== */
+async function askClaude(t,btn){
+  const s=S();
+  if(!s.apiKey){ openModal(settingsForm()); toast("Add your API key to enable Claude"); return; }
+  const label=btn.textContent; btn.disabled=true; btn.innerHTML='<span class="spin"></span> Asking Claude…';
+  const sys=`You are a disciplined swing-trading assistant. You apply ONE fixed, pre-agreed rule set to the user's open position. You do NOT predict the market, give generic financial advice, or invent new rules. You only judge the position against these rules and the live numbers given.
+
+RULES:
+- Fixed $${s.positionSize} positions.
+- Initial stop = low of the opening day.
+- Hard take-profit at +${(s.targetPct*100).toFixed(0)}% (entry x ${(1+s.targetPct).toFixed(2)}). Do not chase past it.
+- Move stop to entry (breakeven) once a daily close is >= +${(s.beTriggerPct*100).toFixed(1)}% above entry.
+- Optional partial: sell ${(s.partialFrac*100).toFixed(0)}% at +${(s.partialPct*100).toFixed(0)}% — roughly P&L-neutral, psychological only.
+- Do NOT skip sub-2% stops. Avoid initial stops wider than ~${(s.maxStopWarn*100).toFixed(0)}%.
+- New entries only in a bull regime (ONEQ 10-EMA > 20-EMA). Current regime: ${s.regime.toUpperCase()}.
+- Honest caveat: the +45% target edge rests on only a few big winners in backtesting, so treat it as a working hypothesis, not gospel.
+
+OUTPUT FORMAT: First line = ONE action in caps (HOLD / MOVE STOP TO BREAKEVEN / TAKE PARTIAL / TRIM / CLOSE / TAKE TARGET). Then at most two short sentences citing the specific numbers and which rule applies. Be concrete and brief. No disclaimers.`;
+  const usr=`Position: ${t.ticker}
+Entry: $${t.entry} on ${t.entryDate} (${daysBetween(t.entryDate,today())} days held)
+Shares held: ${remShares(t)}${(t.partials||[]).length?` (already banked ${(t.partials).reduce((a,p)=>a+p.shares,0)} as partials)`:""}
+Current price: $${t.currentPrice} (${pctTxt(retPct(t))})
+Current stop: $${t.currentStop}${atBE(t)?" (at breakeven)":""}
++45% target price: $${targetPrice(t).toFixed(2)}
+Initial stop distance: ${(initStopPct(t)*100).toFixed(1)}%
+Breakeven trigger met: ${beTriggered(t)?"yes":"no"}
+
+What does the strategy say to do right now?`;
+  try{
+    const res=await fetch("https://api.anthropic.com/v1/messages",{
+      method:"POST",
+      headers:{"x-api-key":s.apiKey,"anthropic-version":"2023-06-01","content-type":"application/json","anthropic-dangerous-direct-browser-access":"true"},
+      body:JSON.stringify({model:s.model,max_tokens:300,system:sys,messages:[{role:"user",content:usr}]})
+    });
+    const data=await res.json();
+    if(!res.ok){ throw new Error(data?.error?.message||("HTTP "+res.status)); }
+    const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
+    t.advice={text:text||"(no response)",model:s.model,ts:Date.now()};
+    persist(); render();
+  }catch(err){
+    btn.disabled=false; btn.textContent=label;
+    toast("Claude error: "+(err.message||"request failed"));
+  }
+}
+
+/* ============================== live prices (Twelve Data) ============================== */
+const tdNum=(x)=>{ const n=parseFloat(x); return isFinite(n)?n:null; };
+let refreshing=false, lastQuoteTs=null, autoTimer=null;
+
+function agoText(ts){
+  const s=Math.round((Date.now()-ts)/1000);
+  if(s<60) return "updated "+s+"s ago";
+  const m=Math.round(s/60); if(m<60) return "updated "+m+"m ago";
+  return "updated "+Math.round(m/60)+"h ago";
+}
+
+/* approximate US regular session: Mon–Fri 09:30–16:00 ET. Holidays not handled — the per-symbol
+   is_market_open flag from the quote reflects reality anyway; worst case is one wasted call. */
+function usMarketLikelyOpen(){
+  try{
+    const et=new Date(new Date().toLocaleString("en-US",{timeZone:"America/New_York"}));
+    const day=et.getDay(); if(day===0||day===6) return false;
+    const mins=et.getHours()*60+et.getMinutes();
+    return mins>=570 && mins<960;
+  }catch(e){ return true; }
+}
+
+/* one batched HTTP call for all open tickers → {SYM:{price,prevClose,marketOpen}} */
+async function fetchQuotes(symbols){
+  const key=S().twelveKey;
+  if(!key) throw new Error("Add your Twelve Data key in Settings first");
+  if(!symbols.length) return {};
+  const url="https://api.twelvedata.com/quote?symbol="+encodeURIComponent(symbols.join(","))+"&apikey="+encodeURIComponent(key);
+  let res;
+  try{ res=await fetch(url); }
+  catch(e){ throw new Error("Request blocked (likely CORS or no network) — see the live-prices note in Settings"); }
+  let data;
+  try{ data=await res.json(); }
+  catch(e){ throw new Error("Twelve Data returned a non-JSON response (HTTP "+res.status+")"); }
+  if(data && data.status==="error") throw new Error(data.message||("Twelve Data error "+(data.code||res.status)));
+  const map=(symbols.length===1 && data && data.symbol) ? {[data.symbol]:data} : data;
+  const out={};
+  for(const sym of symbols){
+    const k=Object.keys(map||{}).find(x=>x.toUpperCase()===sym.toUpperCase());
+    const q=k?map[k]:null;
+    if(!q || q.status==="error"){ out[sym]={error:(q&&q.message)||"no data"}; continue; }
+    out[sym]={ price:tdNum(q.close), prevClose:tdNum(q.previous_close), marketOpen:q.is_market_open===true };
+  }
+  return out;
+}
+
+async function refreshPrices(manual){
+  const open=state.trades.filter(t=>t.status==="open");
+  const syms=[...new Set(open.map(t=>t.ticker.toUpperCase()))];
+  const btn=document.getElementById("refreshBtn");
+  if(!S().twelveKey){ render(); if(manual) toast(syms.length?"Add a Twelve Data key in Settings to pull live prices":"Refreshed"); return; }
+  if(!syms.length){ render(); if(manual) toast("No open positions to price"); return; }
+  if(refreshing) return;
+  refreshing=true;
+  if(btn){ btn.disabled=true; btn.dataset.label=btn.textContent; btn.textContent="↻ …"; }
+  try{
+    const q=await fetchQuotes(syms);
+    let updated=0; const errs=[];
+    open.forEach(t=>{
+      const r=q[t.ticker.toUpperCase()];
+      if(!r) return;
+      if(r.error){ errs.push(t.ticker); return; }
+      if(r.price!=null){ t.currentPrice=r.price; updated++; }
+      if(r.prevClose!=null) t.prevClose=r.prevClose;
+      t.marketOpen=r.marketOpen;
+    });
+    lastQuoteTs=Date.now(); persist(); render();
+    if(manual||errs.length){
+      let m=`Updated ${updated} ${updated===1?"price":"prices"}`;
+      if(errs.length) m+=` · no data: ${errs.join(", ")}`;
+      toast(m);
+    }
+  }catch(err){
+    render(); toast(err.message||"Price refresh failed");
+  }finally{
+    refreshing=false;
+    const b=document.getElementById("refreshBtn");
+    if(b){ b.disabled=false; b.textContent=b.dataset.label||"↻ Refresh"; }
+  }
+}
+
+function setupAutoRefresh(){
+  if(autoTimer){ clearInterval(autoTimer); autoTimer=null; }
+  const mins=+S().autoRefreshMin||0;
+  if(mins>0 && S().twelveKey){
+    autoTimer=setInterval(()=>{
+      if(document.hidden) return;
+      if(!usMarketLikelyOpen()) return;
+      if(!state.trades.some(t=>t.status==="open")) return;
+      refreshPrices(false);
+    }, mins*60000);
+  }
+}
+
+/* ============================== cloud sync (GitHub Gist) ============================== */
+const GH_FILE="trade-manager.json";
+const CRED_KEYS=["apiKey","twelveKey","githubToken","gistId"]; // never uploaded to the gist
+let pendingCloud=null;
+
+function settingsForCloud(){ const o={},s=S(); for(const k in s){ if(!CRED_KEYS.includes(k)) o[k]=s[k]; } return o; }
+function syncablePayload(){ return {v:2, savedAt:new Date().toISOString(), trades:state.trades, equityLog:state.equityLog||[], settings:settingsForCloud()}; }
+function hashStr(s){ let h=5381; for(let i=0;i<s.length;i++){ h=(((h<<5)+h)^s.charCodeAt(i))|0; } return (h>>>0).toString(36); }
+function syncHash(p){ return hashStr(JSON.stringify({t:p.trades,e:p.equityLog,s:p.settings})); }
+function localUnsynced(){ return syncHash(syncablePayload())!==state.sync.lastHash; }
+
+function syncStatusText(){
+  const s=S();
+  if(!s.githubToken||!s.gistId) return "Not configured — add a token, then Create a gist (or paste an existing ID).";
+  const when=state.sync.lastTs?agoText(state.sync.lastTs).replace("updated ","synced "):"never synced";
+  return (state.sync.lastTs?`Last ${when}.`:"Never synced.")+(localUnsynced()?" Local changes not yet pushed.":" Up to date locally.");
+}
+function dataSummary(trades,equity,savedAt){
+  const open=(trades||[]).filter(t=>t.status==="open").length, closed=(trades||[]).filter(t=>t.status==="closed").length;
+  let s=`${open} open · ${closed} closed`;
+  if(equity!=null) s+=` · ${fmtCur(equity)}`;
+  if(savedAt) s+=` · saved ${new Date(savedAt).toLocaleString("en-GB")}`;
+  return s;
+}
+function parseCloudPayload(content){
+  if(!content) return null;
+  try{ const p=JSON.parse(content); if(!p||typeof p!=="object") return null;
+    return {trades:Array.isArray(p.trades)?p.trades:[], equityLog:Array.isArray(p.equityLog)?p.equityLog:[],
+      settings:(p.settings&&typeof p.settings==="object")?p.settings:{}, savedAt:p.savedAt||null};
+  }catch(e){ return null; }
+}
+
+function ghHeaders(){ return {"Authorization":"token "+S().githubToken,"Accept":"application/vnd.github+json","Content-Type":"application/json"}; }
+async function ghCall(url,opts){
+  let res;
+  try{ res=await fetch(url,opts); }
+  catch(e){ throw new Error("Network/CORS blocked the GitHub request"); }
+  let d=null; try{ d=await res.json(); }catch(e){}
+  if(!res.ok){
+    if(res.status===401) throw new Error("GitHub rejected the token (401) — does it have gist scope?");
+    if(res.status===404) throw new Error("Gist not found (404) — check the Gist ID");
+    if(res.status===403) throw new Error("GitHub blocked it (403) — rate limit or missing scope");
+    throw new Error("GitHub: "+((d&&d.message)||("HTTP "+res.status)));
+  }
+  return d;
+}
+async function gistGet(id){
+  const d=await ghCall("https://api.github.com/gists/"+encodeURIComponent(id),{headers:ghHeaders()});
+  const f=d.files&&d.files[GH_FILE];
+  return { content:f?f.content:null, updatedAt:d.updated_at };
+}
+async function gistUpdate(id,content){
+  return ghCall("https://api.github.com/gists/"+encodeURIComponent(id),
+    {method:"PATCH",headers:ghHeaders(),body:JSON.stringify({files:{[GH_FILE]:{content}}})});
+}
+async function gistCreateApi(content){
+  return ghCall("https://api.github.com/gists",
+    {method:"POST",headers:ghHeaders(),body:JSON.stringify({description:"Trade Manager data",public:false,files:{[GH_FILE]:{content}}})});
+}
+
+/* --- create --- */
+async function cloudCreate(){
+  readSettingsFields();
+  if(!S().githubToken){ toast("Add a GitHub token first"); return; }
+  toast("Creating gist…");
+  try{
+    const payload=syncablePayload();
+    const d=await gistCreateApi(JSON.stringify(payload,null,2));
+    S().gistId=d.id; state.sync={lastHash:syncHash(payload),lastTs:Date.now()}; persist();
+    openModal(settingsForm()); toast("Private gist created & data uploaded");
+  }catch(err){ toast(err.message||"Create failed"); }
+}
+
+/* --- push (confirm first) --- */
+async function cloudPushStart(){
+  readSettingsFields();
+  const s=S();
+  if(!s.githubToken||!s.gistId){ toast("Add a token and Gist ID (or Create) first"); return; }
+  toast("Checking cloud…");
+  try{
+    const got=await gistGet(s.gistId);
+    const cloud=parseCloudPayload(got.content);
+    const external = cloud ? (syncHash(cloud)!==state.sync.lastHash) : false;
+    const localSum=dataSummary(state.trades,agg().equity);
+    const cloudSum=cloud?dataSummary(cloud.trades,null,cloud.savedAt):"empty";
+    openModal(confirmPushHTML(localSum,cloudSum,external));
+  }catch(err){ toast(err.message||"Couldn't reach the gist"); }
+}
+function confirmPushHTML(localSum,cloudSum,external){
+  return `<h2>Upload to cloud?</h2>
+    <div class="note" style="margin-bottom:12px">This replaces the cloud copy with your current data.</div>
+    <div class="stat"><span class="k">Uploading</span><span class="v" style="font-weight:600">${localSum}</span></div>
+    <div class="stat"><span class="k">Cloud now holds</span><span class="v" style="font-weight:600">${cloudSum}</span></div>
+    ${external?`<div class="note" style="background:var(--redbg);color:#a01919;margin-top:10px">⚠ The cloud copy changed since your last sync — possibly from another device. Uploading overwrites it.</div>`:""}
+    <div class="mact" style="margin-top:14px"><button class="btn btn-ghost" data-m="settings">Cancel</button>
+    <button class="btn btn-primary" data-m="cloudpush_do">Upload</button></div>`;
+}
+async function cloudPushDo(){
+  const s=S();
+  toast("Uploading…");
+  try{
+    const payload=syncablePayload();
+    await gistUpdate(s.gistId,JSON.stringify(payload,null,2));
+    state.sync={lastHash:syncHash(payload),lastTs:Date.now()}; persist();
+    openModal(settingsForm()); toast("Pushed to cloud");
+  }catch(err){ toast(err.message||"Upload failed"); openModal(settingsForm()); }
+}
+
+/* --- pull (confirm first) --- */
+async function cloudPullStart(){
+  readSettingsFields();
+  const s=S();
+  if(!s.githubToken||!s.gistId){ toast("Add a token and Gist ID first"); return; }
+  toast("Reading cloud…");
+  try{
+    const got=await gistGet(s.gistId);
+    const cloud=parseCloudPayload(got.content);
+    if(!cloud){ toast("Cloud copy is empty or unreadable"); return; }
+    pendingCloud=cloud;
+    openModal(confirmPullHTML(dataSummary(cloud.trades,null,cloud.savedAt),localUnsynced()));
+  }catch(err){ toast(err.message||"Couldn't read the gist"); }
+}
+function confirmPullHTML(cloudSum,localUns){
+  return `<h2>Replace local with cloud?</h2>
+    <div class="note" style="margin-bottom:12px">This replaces your local trades, history and strategy settings with the cloud copy. Your local API keys are kept.</div>
+    <div class="stat"><span class="k">Cloud copy</span><span class="v" style="font-weight:600">${cloudSum}</span></div>
+    ${localUns?`<div class="note" style="background:var(--redbg);color:#a01919;margin-top:10px">⚠ You have local changes that aren't pushed — they'll be lost.</div>`:""}
+    <div class="mact" style="margin-top:14px"><button class="btn btn-ghost" data-m="settings">Cancel</button>
+    <button class="btn btn-close" data-m="cloudpull_do">Replace local</button></div>`;
+}
+function cloudPullDo(){
+  if(!pendingCloud){ openModal(settingsForm()); return; }
+  const c=pendingCloud; pendingCloud=null;
+  state.trades=c.trades||[];
+  state.equityLog=c.equityLog||[];
+  const s=S(); for(const k in c.settings){ if(!CRED_KEYS.includes(k)) s[k]=c.settings[k]; }
+  state.sync={lastHash:syncHash(syncablePayload()),lastTs:Date.now()};
+  persist(); setupAutoRefresh(); render();
+  openModal(settingsForm()); toast("Pulled from cloud");
+}
+
+/* ============================== seed + boot ============================== */
+function seedIfEmpty(){
+  if(state.trades.length) return;
+  // sample positions mirroring the reference screenshot so the UI isn't empty on first open
+  state.trades=[
+    {id:uid(),ticker:"VOYA",entry:85.65,shares:175,initialStop:82.10,currentStop:85.65,currentPrice:89.14,entryDate:isoMinus(5),status:"open",partials:[],advice:null},
+    {id:uid(),ticker:"HPP",entry:13.07,shares:637,initialStop:12.40,currentStop:13.07,currentPrice:15.07,entryDate:isoMinus(8),status:"open",partials:[{shares:213,price:15.04,date:today()}],advice:null},
+    {id:uid(),ticker:"LQDA",entry:42.10,shares:356,initialStop:41.20,currentStop:41.20,currentPrice:41.63,entryDate:isoMinus(2),status:"open",partials:[],advice:null}
+  ];
+  state.settings.startingPot=200000; state.settings.fx=1.3362; persist();
+}
+function isoMinus(d){ const x=new Date(); x.setDate(x.getDate()-d); return x.toISOString().slice(0,10); }
+
+seedIfEmpty();
+render();
+setupAutoRefresh();
+setInterval(()=>{ const ul=document.getElementById("updLabel"); if(ul&&lastQuoteTs) ul.textContent=agoText(lastQuoteTs); },30000);
+</script>
+</body>
+</html>
