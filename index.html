@@ -199,7 +199,7 @@ const DEFAULTS={
     apiKey:"", model:"claude-sonnet-4-6",
     twelveKey:"", autoRefreshMin:0,
     githubToken:"", gistId:"",         // cloud sync (device-local, never uploaded)
-    startingPot:200000, currency:"$", fx:1, regime:"bear",
+    startingPot:200000, currency:"$", fx:1, regime:"bear", cashAdjust:0,
     positionSize:15000,
     targetPct:0.45, beTriggerPct:0.025, partialPct:0.15, partialFrac:0.25,
     minStopWarn:0.02, maxStopWarn:0.08
@@ -293,11 +293,11 @@ function agg(){
   const unrealUSDtot=openT.reduce((s,t)=>s+unrealUSD(t),0);
   const deployedMktUSD=openT.reduce((s,t)=>s+remShares(t)*t.currentPrice,0);
   const deployedCostUSD=openT.reduce((s,t)=>s+posValueUSD(t),0);
-  const startPot=S().startingPot;
-  const equity=startPot+usd2gbp(realizedUSD)+usd2gbp(unrealUSDtot);
-  const cash=startPot+usd2gbp(realizedUSD)-usd2gbp(deployedCostUSD);
+  const startPot=S().startingPot, cashAdj=S().cashAdjust||0;
+  const equity=startPot+usd2gbp(realizedUSD)+usd2gbp(unrealUSDtot)+cashAdj;
+  const cash=startPot+usd2gbp(realizedUSD)-usd2gbp(deployedCostUSD)+cashAdj;
   return {fx,openT,closedT,realizedGBP:usd2gbp(realizedUSD),unrealGBP:usd2gbp(unrealUSDtot),
-    deployedMktGBP:usd2gbp(deployedMktUSD),equity,cash,startPot};
+    deployedMktGBP:usd2gbp(deployedMktUSD),equity,cash,startPot,cashAdj};
 }
 
 /* total realized USD for one trade: banked partials + (if closed) remaining shares at exit.
@@ -471,8 +471,10 @@ function viewPortfolio(a){
     <div class="stat"><span class="k">Realised P&L</span><span class="v ${a.realizedGBP>=0?'pos':'neg'}">${(a.realizedGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.realizedGBP)).toLocaleString('en-US')}</span></div>
     <div class="stat"><span class="k">Open unrealised P&L</span><span class="v ${a.unrealGBP>=0?'pos':'neg'}">${(a.unrealGBP>=0?'+':'−')+cur()+Math.round(Math.abs(a.unrealGBP)).toLocaleString('en-US')}</span></div>
     <div class="stat"><span class="k">Cash available</span><span class="v">${fmtCur(a.cash)}</span></div>
+    ${a.cashAdj?`<div class="stat"><span class="k">— incl. manual adjustment</span><span class="v ${a.cashAdj>=0?'pos':'neg'}">${(a.cashAdj>=0?'+':'−')+cur()+Math.round(Math.abs(a.cashAdj)).toLocaleString('en-US')}</span></div>`:""}
     <div class="stat"><span class="k">Deployed (mkt value)</span><span class="v">${fmtCur(a.deployedMktGBP)}</span></div>
     <div class="stat"><span class="k">Open positions</span><span class="v">${a.openT.length}</span></div>
+    <button class="btn btn-ghost" id="cashBtn" style="width:100%;margin-top:12px">Adjust cash balance</button>
   </div>
   <div class="panel">
     <h3>Market regime</h3>
@@ -628,6 +630,30 @@ function closeForm(t){
     <button class="btn btn-close" data-m="doclose" data-id="${t.id}">Close trade</button></div>`;
 }
 
+function cashForm(){
+  const a=agg(), adj=a.cashAdj||0, derived=a.cash-adj;
+  const sign=(n)=>(n>=0?'+':'−')+cur()+Math.round(Math.abs(n)).toLocaleString('en-US');
+  return `<h2>Adjust cash balance</h2>
+    <div class="note" style="margin-bottom:12px">Match the app's cash to your broker — for deposits, withdrawals, fees, dividends, or fills the app didn't capture. Cash is worked out as baseline budget + realised profit − capital deployed; this just nudges it to reality, and future trades keep updating on top of it.</div>
+    <div class="stat"><span class="k">App-calculated cash</span><span class="v">${fmtCur(derived)}</span></div>
+    ${adj?`<div class="stat"><span class="k">Current adjustment</span><span class="v ${adj>=0?'pos':'neg'}">${sign(adj)}</span></div>`:""}
+    <div class="field" style="margin-top:12px"><label>Your actual cash balance (${cur()})</label>
+      <input id="cash_actual" type="number" step="any" value="${Math.round(a.cash)}">
+      <div class="hint">Type what your broker shows. The difference is stored as an adjustment.</div></div>
+    <div class="mact">
+      <button class="btn btn-ghost" data-m="cancel">Cancel</button>
+      ${adj?`<button class="btn btn-ghost" data-m="resetcash">Clear adjustment</button>`:""}
+      <button class="btn btn-primary" data-m="savecash">Save</button>
+    </div>`;
+}
+function saveCash(){
+  const a=agg(), adj=a.cashAdj||0, derived=a.cash-adj, target=num("cash_actual");
+  if(target==null){ toast("Enter a cash amount"); return; }
+  S().cashAdjust=target-derived;
+  persist(); closeModal(); render(); toast("Cash balance updated");
+}
+function resetCash(){ S().cashAdjust=0; persist(); closeModal(); render(); toast("Adjustment cleared"); }
+
 function settingsForm(){
   const s=S();
   return `<h2>Settings</h2>
@@ -681,6 +707,7 @@ document.getElementById("regimeBadge").addEventListener("click",()=>{ S().regime
 
 document.getElementById("view").addEventListener("click",e=>{
   if(e.target.id==="addBtn"){ openModal(tradeForm(null)); return; }
+  if(e.target.id==="cashBtn"){ openModal(cashForm()); return; }
   const card=e.target.closest(".card"); if(!card) return;
   const t=state.trades.find(x=>x.id===card.dataset.id); if(!t) return;
   const act=e.target.closest("[data-act]")?.dataset.act;
@@ -702,6 +729,8 @@ modal.addEventListener("click",e=>{
   if(m==="dopartial"){ doPartial(e.target.dataset.id); return; }
   if(m==="doclose"){ doClose(e.target.dataset.id); return; }
   if(m==="savesettings"){ saveSettings(); return; }
+  if(m==="savecash"){ saveCash(); return; }
+  if(m==="resetcash"){ resetCash(); return; }
   if(m==="export"){ doExport(); return; }
   if(m==="import"){ document.getElementById("importFile").click(); return; }
   if(m==="settings"){ openModal(settingsForm()); return; }
