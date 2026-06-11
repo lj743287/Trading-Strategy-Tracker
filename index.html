@@ -241,7 +241,8 @@ function targetPrice(t){ return t.entry*(1+S().targetPct); }
 function initStopPct(t){ return (t.entry-t.initialStop)/t.entry; }
 function unrealUSD(t){ return remShares(t)*(t.currentPrice-t.entry); }
 function retPct(t){ return t.currentPrice/t.entry-1; }
-function posValueUSD(t){ return remShares(t)*t.entry; }
+function posValueUSD(t){ return remShares(t)*t.entry; }      // cost basis (capital committed)
+function marketValueUSD(t){ return remShares(t)*t.currentPrice; } // what the holding is worth now
 function maxFurtherLossUSD(t){ return remShares(t)*(t.currentStop-t.currentPrice); }
 function beThreshold(t){ return t.entry*(1+S().beTriggerPct); }
 /* Last CONFIRMED daily close. While the market is open, today's print is not a close yet, so the
@@ -402,7 +403,8 @@ function cardHTML(t){
       <div class="dr"><span class="k">Stop</span><span class="v mono">${fmtUSD2(t.currentStop)}${atBE(t)?' · BE':''}</span></div>
       <div class="dr"><span class="k">+45% target</span><span class="v mono">${fmtUSD2(targetPrice(t))}</span></div>
       <div class="dr"><span class="k">Max further loss</span><span class="v mono ${maxFurtherLossUSD(t)<0?'neg':'pos'}">${fmtUSD(maxFurtherLossUSD(t))}</span></div>
-      <div class="dr"><span class="k">Position value</span><span class="v mono">${fmtUSD(posValueUSD(t))}</span></div>
+      <div class="dr"><span class="k">Cost basis</span><span class="v mono">${fmtUSD(posValueUSD(t))}</span></div>
+      <div class="dr"><span class="k">Market value</span><span class="v mono">${fmtUSD(marketValueUSD(t))}</span></div>
       ${part}
     </div>
     <div class="advice">
