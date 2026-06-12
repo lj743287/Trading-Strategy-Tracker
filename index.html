@@ -81,6 +81,17 @@
   .dr .v{font-weight:600}
   .dr .v.mono{font-variant-numeric:tabular-nums}
   .muted{color:var(--muted)}
+  .summary{background:#fff;border:1px solid var(--line);border-radius:14px;padding:14px 16px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.04)}
+  .sumtop{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px}
+  .summary .sl{font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.3px;text-transform:uppercase}
+  .summary .sv{font-size:22px;font-weight:800;font-variant-numeric:tabular-nums;margin-top:2px}
+  .summary .sx{font-size:12px;color:var(--muted);font-weight:600}
+  .summary .sright{text-align:right}
+  .sumlist{border-top:1px solid var(--line);padding-top:8px;display:flex;flex-direction:column;gap:5px}
+  .sumrow{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:baseline;font-size:13px}
+  .sumrow .st{font-weight:800}
+  .sumrow .sp{text-align:right;font-variant-numeric:tabular-nums;min-width:56px}
+  .sumrow .sd{text-align:right;font-variant-numeric:tabular-nums;min-width:78px;font-weight:600}
   .lwwrap{padding:2px 14px 14px}
   .lwlabel{display:flex;align-items:center;justify-content:space-between;font-size:11px;color:var(--muted);font-weight:700;letter-spacing:.3px;margin:0 2px 6px}
   .tvlink{font-size:11px;font-weight:700;color:var(--blue);text-decoration:none;letter-spacing:0}
@@ -220,8 +231,9 @@ function load(){
   try{ const p=JSON.parse(raw);
     const settings=Object.assign({},DEFAULTS.settings,p.settings||{});
     settings.currency="$"; settings.fx=1;   // dollar-native: ignore any legacy GBP/FX
+    const trades=(p.trades||[]); trades.forEach(x=>{ delete x.advice; }); // advice is session-only now
     return {
-      trades:p.trades||[],
+      trades,
       equityLog:Array.isArray(p.equityLog)?p.equityLog:[],
       sync:Object.assign({},DEFAULTS.sync,p.sync||{}),
       settings
@@ -346,6 +358,7 @@ function progressSeries(a){
 
 /* ============================== render ============================== */
 let activeTab="trades";
+let adviceCache={};   // Claude advice, in-memory only — cleared on page refresh
 function render(){
   clearCharts();
   const seq=++renderSeq;
@@ -399,7 +412,8 @@ function cardHTML(t){
     ).join("") +
       `<div class="dr"><span class="k">Scaled out</span><span class="v mono">${soldSh} of ${t.shares} (${((soldSh/t.shares)*100).toFixed(0)}%) · banked ${fmtUSD(partialRealizedUSD(t))}</span></div>`
     : "";
-  const claudeBlock = t.advice? `<div class="adv-claude"><span class="tag">Claude · ${t.advice.model||""}</span>${escapeHtml(t.advice.text)}</div>`:"";
+  const adv=adviceCache[t.id];
+  const claudeBlock = adv? `<div class="adv-claude"><span class="tag">Claude · ${adv.model||""}</span>${escapeHtml(adv.text)}</div>`:"";
   return `<div class="card" data-id="${t.id}">
     <div class="chead">
       <div class="crow1">
@@ -437,9 +451,29 @@ function cardHTML(t){
   </div>`;
 }
 
+function openSummaryHTML(open){
+  let totUnreal=0, totCost=0;
+  const rows=open.map(t=>{ const u=unrealUSD(t); totUnreal+=u; totCost+=posValueUSD(t); return {t,u,r:retPct(t)}; })
+                .sort((a,b)=>b.r-a.r);
+  const totPct=totCost?totUnreal/totCost:0, win=rows.filter(x=>x.u>=0).length;
+  const sg=(n)=>(n>=0?'+':'−')+fmtUSD(Math.abs(n));
+  const list=rows.map(x=>`<div class="sumrow">
+    <span class="st">${escapeHtml(x.t.ticker)}</span>
+    <span class="sp ${x.r>=0?'pos':'neg'}">${pctTxt(x.r)}</span>
+    <span class="sd ${x.u>=0?'pos':'neg'}">${sg(x.u)}</span></div>`).join("");
+  return `<div class="summary">
+    <div class="sumtop">
+      <div><div class="sl">Open P&L</div><div class="sv ${totUnreal>=0?'pos':'neg'}">${sg(totUnreal)} <span class="sx">(${pctTxt(totPct)})</span></div></div>
+      <div class="sright"><div class="sl">Positions</div><div class="sv">${open.length}</div><div class="sx">${win} up · ${open.length-win} down</div></div>
+    </div>
+    <div class="sumlist">${list}</div>
+  </div>`;
+}
 function viewTrades(){
   const open=state.trades.filter(t=>t.status==="open");
-  let h=`<button class="addbtn" id="addBtn">+ Open a new trade</button>`;
+  let h="";
+  if(open.length) h+=openSummaryHTML(open);
+  h+=`<button class="addbtn" id="addBtn">+ Open a new trade</button>`;
   if(!open.length){
     h+=`<div class="empty"><b>No active positions.</b><br>Open a trade to start tracking it against your strategy.</div>`;
   }else{
@@ -708,7 +742,7 @@ function settingsForm(){
     <div class="sectlabel" style="margin:8px 2px 10px">Cloud sync · GitHub Gist</div>
     <div class="field"><label>GitHub token (classic — “gist” scope only)</label>
       <input id="s_ghtoken" type="password" value="${escapeHtml(s.githubToken)}" placeholder="ghp_…">
-      <div class="hint">github.com/settings/tokens → Generate new (classic), tick <b>only</b> gist. Stored in this browser; never uploaded.</div></div>
+      <div class="hint"><a href="https://github.com/settings/tokens/new?scopes=gist&description=Trade-Manager" target="_blank" rel="noopener" style="color:var(--blue);font-weight:700">Get a token →</a> (opens GitHub with the <b>gist</b> scope ticked — just hit Generate, copy, paste here). Stored in this browser; never uploaded.</div></div>
     <div class="field"><label>Gist ID</label>
       <input id="s_gistid" value="${escapeHtml(s.gistId)}" placeholder="(blank → use Create)">
       <div class="hint">${syncStatusText()}</div></div>
@@ -880,8 +914,8 @@ Give a short, plain-English technical read of this chart and then your action.`;
     const data=await res.json();
     if(!res.ok){ throw new Error(data?.error?.message||("HTTP "+res.status)); }
     const text=(data.content||[]).filter(b=>b.type==="text").map(b=>b.text).join("\n").trim();
-    t.advice={text:text||"(no response)",model:s.model,ts:Date.now()};
-    persist(); render();
+    adviceCache[t.id]={text:text||"(no response)",model:s.model,ts:Date.now()};
+    render();
   }catch(err){
     btn.disabled=false; btn.textContent=label;
     toast("Claude error: "+(err.message||"request failed"));
